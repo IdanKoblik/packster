@@ -1,0 +1,7 @@
+file_upload_limit: 20
+
+sql:
+  username: "username"
+  password: "password"
+  addr: "localhost:5173"
+  database: "db"

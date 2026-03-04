@@ -1,0 +1,7 @@
+file_upload_limit: 20
+
+sql:
+  username: "admin"
+  password: "admin"
+  addr: "localhost:5432"
+  database: "artifactor"
