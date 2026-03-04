@@ -38,8 +38,8 @@ func main() {
 		buildTime = "unknown"
 	}
 
-	fmt.Printf(fmt.Sprintf("\t\t%s • %s\n\n", MAINTAINER, buildTime))
-	
+	fmt.Printf("\t\t%s • %s\n\n", MAINTAINER, buildTime)
+
 	cfg, err := config.ParseConfig(os.Getenv("CONFIG_PATH"))
 	if err != nil {
 		logging.Log.Error(err)
@@ -47,9 +47,13 @@ func main() {
 	}
 
 	logging.Log.Debugf("Max file size that can be uploaded: %d\n", cfg.FileUploadLimit)
-	logging.Log.Debug("Connecting to pgsql database:")
+	logging.Log.Info("Connecting to pgsql database.")
 	logging.Log.Debugf("Username: %s", cfg.Sql.Username)
 	logging.Log.Debugf("Password: %s", strings.Repeat("*", len(cfg.Sql.Password)))
 	logging.Log.Debugf("Addr: %s", cfg.Sql.Addr)
-	logging.Log.Debugf("Database: %s", cfg.Sql.Database)
+	logging.Log.Debugf("Database: %s\n", cfg.Sql.Database)
+
+	logging.Log.Info("Connecting to redis database.")
+	logging.Log.Debugf("Addr: %s", cfg.Redis.Addr)
+	logging.Log.Debugf("Password: %s", strings.Repeat("*", len(cfg.Redis.Password)))
 }

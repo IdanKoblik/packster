@@ -17,10 +17,14 @@ func TestParseConfig_Success(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 20, cfg.FileUploadLimit)
+
 		assert.Equal(t, "username", cfg.Sql.Username)
 		assert.Equal(t, "password", cfg.Sql.Password)
 		assert.Equal(t, "localhost:5173", cfg.Sql.Addr)
 		assert.Equal(t, "db", cfg.Sql.Database)
+
+		assert.Equal(t, "localhost:6379", cfg.Redis.Addr)
+		assert.Equal(t, "", cfg.Redis.Password)
 	}
 }
 

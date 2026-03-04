@@ -5,3 +5,6 @@ sql:
   password: "admin"
   addr: "localhost:5432"
   database: "artifactor"
+
+redis:
+  addr: "localhost:6379"

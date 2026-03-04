@@ -5,3 +5,6 @@ sql:
   password: "password"
   addr: "localhost:5173"
   database: "db"
+
+redis:
+  addr: "localhost:6379"

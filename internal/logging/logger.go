@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/log"
 )
-var Log *log.Logger
+var Log *log.Logger = log.New(os.Stderr)
 
 func SetupLogger() {
 	Log = log.NewWithOptions(os.Stderr, log.Options{
