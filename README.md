@@ -5,6 +5,10 @@ Robust package version management service designed to simplify the way developer
 > ⚠ THIS PROJECT IS UNDER DEVELOPMENT, THERE ISN'T ANY OFFICIAL RELEASE FOR NOW.
 >
 
+## Architecture
+
+![arch](assets/arch.png)
+
 ## Installation
 
 ### Building
