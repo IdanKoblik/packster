@@ -1,7 +1,7 @@
 package config
 
 type Config struct {
-	FileUploadLimit int `yaml:"file_upload_limit"`
+	FileUploadLimit int `yaml:"file_upload_limit,omitempty"`
 	Sql PgsqlConfig `yaml:"sql"`
 }
 
