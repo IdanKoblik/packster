@@ -1,16 +1,21 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math/rand/v2"
+	"net/http"
 	"os"
-	"context"
 	"strings"
 
-	"artifactor/internal/redis"
-	"artifactor/internal/sql"
 	"artifactor/internal/config"
+	"artifactor/internal/endpoints"
 	"artifactor/internal/logging"
+	"artifactor/internal/redis"
+	"artifactor/internal/repository"
+	"artifactor/internal/sql"
+
+	"github.com/gin-gonic/gin"
 )
 
 const BANNER = `
@@ -31,18 +36,7 @@ var BUILD_TIME string
 
 func main() {
 	logging.SetupLogger()
-
-	fmt.Print(PURPLE)
-	fmt.Print(BANNER)
-	fmt.Print(RESET)
-	fmt.Println()
-
-	buildTime := BUILD_TIME
-	if buildTime == "" {
-		buildTime = "unknown"
-	}
-
-	fmt.Printf("\t\t%s • %s\n\n", MAINTAINER, buildTime)
+	printBanner()
 
 	cfg, err := config.ParseConfig(os.Getenv("CONFIG_PATH"))
 	if err != nil {
@@ -78,9 +72,48 @@ func main() {
 
 	defer redis.Client.Close()
 	logging.Log.Info("Successfully connected to redis database!\n")
+
+	logging.Log.Info("Starting rest api")
+	router := gin.Default()
+
+	authRepo := repository.NewAuthRepository(redis.Client, sql.Conn)
+	authHandler := endpoints.NewAuthHandler(authRepo)
+
+	router.GET("/health", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	api := router.Group("/api")
+	api.PUT("/register", func(c *gin.Context) {
+		authHandler.HandleRegister(c, cfg.SigningKey)
+	})
+
+	addr := os.Getenv("SERVER_ADDR")
+	if addr == "" {
+		addr = "0.0.0.0:8080"
+	}
+
+	if err := router.Run(addr); err != nil {
+		logging.Log.Error("Failed to start rest api\n", err)
+		os.Exit(1)
+	}
 }
 
 func generatePasswordMask() string {
 	n := rand.N(18) + 5
 	return strings.Repeat("*", n)
+}
+
+func printBanner() {
+	fmt.Print(PURPLE)
+	fmt.Print(BANNER)
+	fmt.Print(RESET)
+	fmt.Println()
+
+	buildTime := BUILD_TIME
+	if buildTime == "" {
+		buildTime = "unknown"
+	}
+
+	fmt.Printf("\t\t%s • %s\n\n", MAINTAINER, buildTime)
 }
