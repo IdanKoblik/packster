@@ -1,4 +1,5 @@
 file_upload_limit: 20
+signing_key: "key"
 
 sql:
   username: "username"
