@@ -2,10 +2,10 @@ file_upload_limit: 20
 signing_key: "key"
 
 sql:
-  username: "username"
-  password: "password"
-  addr: "localhost:5173"
-  database: "db"
+  username: "admin"
+  password: "admin"
+  addr: "localhost:5432"
+  database: "artifactor"
 
 redis:
   addr: "localhost:6379"

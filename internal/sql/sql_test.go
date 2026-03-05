@@ -16,7 +16,7 @@ func TestOpenConnection_MissingConfig(t *testing.T) {
 }
 
 func TestOpenConnection_Sucess(t *testing.T) {
-	path := filepath.Join("..", "..", "fixtures", "config.yml")
+	path := filepath.Join("..", "..", "fixtures", "example.yml")
 	cfg, err := config.ParseConfig(path)
 	assert.NoError(t, err)
 
