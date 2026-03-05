@@ -3,6 +3,7 @@
 # Local files
 bin/
 config.yml
+requests.http
 
 # Binaries for programs and plugins
 *.exe
