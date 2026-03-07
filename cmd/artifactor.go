@@ -83,6 +83,8 @@ func main() {
 	api.Use(middleware.AuthMiddleware(authRepo))
 	{
 		api.PUT("/register", authHandler.HandleRegister)
+		api.DELETE("/prune/:token", authHandler.HandlePrune)
+		api.GET("/fetch/:token", authHandler.HandleFetch)
 	}
 
 	addr := os.Getenv("SERVER_ADDR")

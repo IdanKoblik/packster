@@ -19,7 +19,7 @@ func AuthMiddleware(repo repository.AuthRepoInterface) gin.HandlerFunc {
 			return
 		}
 
-		token, err := repo.FetchToken(authHeader)
+		exists, err := repo.TokenExists(authHeader)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": err.Error(),
@@ -27,13 +27,21 @@ func AuthMiddleware(repo repository.AuthRepoInterface) gin.HandlerFunc {
 			return
 		}
 
-		if token == nil {
+		if !exists {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Invalid api token",
 			})
 			return
 		}
 
-		c.Set("admin", token.Permissions.Admin)
+		admin, err := repo.IsAdmin(authHeader)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		c.Set("admin", admin)
 	}
 }
