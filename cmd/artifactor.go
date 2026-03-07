@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"math/rand/v2"
-	"net/http"
 	"os"
 	"strings"
 
 	"artifactor/internal/config"
 	"artifactor/internal/endpoints"
 	"artifactor/internal/logging"
+	"artifactor/internal/middleware"
 	"artifactor/internal/redis"
 	"artifactor/internal/repository"
 	"artifactor/internal/sql"
@@ -79,14 +79,11 @@ func main() {
 	authRepo := repository.NewAuthRepository(redis.Client, sql.Conn)
 	authHandler := endpoints.NewAuthHandler(authRepo)
 
-	router.GET("/health", func(c *gin.Context) {
-		c.Status(http.StatusOK)
-	})
-
 	api := router.Group("/api")
-	api.PUT("/register", func(c *gin.Context) {
-		authHandler.HandleRegister(c, cfg.SigningKey)
-	})
+	api.Use(middleware.AuthMiddleware(authRepo))
+	{
+		api.PUT("/register", authHandler.HandleRegister)
+	}
 
 	addr := os.Getenv("SERVER_ADDR")
 	if addr == "" {

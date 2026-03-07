@@ -17,7 +17,6 @@ func TestParseConfig_Success(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 20, cfg.FileUploadLimit)
-		assert.Equal(t, "key", cfg.SigningKey)
 
 		assert.Equal(t, "admin", cfg.Sql.Username)
 		assert.Equal(t, "admin", cfg.Sql.Password)

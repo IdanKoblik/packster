@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
-	"artifactor/pkg/requests"
 	"artifactor/internal/utils"
+	"artifactor/pkg/http"
+	"artifactor/pkg/tokens"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 )
@@ -21,7 +22,7 @@ type AuthRepository struct {
 }
 
 const (
-	REDIS_USER_PREFIX = "user"
+	REDIS_TOKEN_PREFIX = "token:"
 )
 
 var (
@@ -37,59 +38,47 @@ func NewAuthRepository(redisClient *redis.Client, sqlClient *pgx.Conn) *AuthRepo
 }
 
 func (r *AuthRepository) getCacheKey(token string) string {
-	return REDIS_USER_PREFIX + token
+	return REDIS_TOKEN_PREFIX + token
 }
 
-func (r *AuthRepository) CreateUser(request *requests.RegisterRequest) error {
-	query := `INSERT INTO "users"("username", "name", "mail", "password", "admin", "upload", "delete")
-				VALUES ($1, $2, $3, $4, $5, $6, $7)`
+func (r *AuthRepository) CreateToken(request *http.CreateRequest) (string, error) {
+	query := `INSERT INTO "users"("token", "admin", "upload", "delete")
+				VALUES ($1, $2, $3, $4)`
 
+	token := uuid.NewString()
 	_, err := r.SqlClient.Exec(
 		ctx,
 		query,
-		request.Username,
-		request.Name,
-		request.Mail,
-		utils.Hash(request.Password),
+		utils.Hash(token),
 		request.Admin,
-		request.Permissions.Upload,
-		request.Permissions.Delete,
+		request.Upload,
+		request.Delete,
 	)
 
 	if err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
+		return "", fmt.Errorf("failed to create user: %w", err)
 	}
 
-	return nil
+	return token, nil
 }
 
-func (r *AuthRepository) UserExists(username string) (bool, error) {
-	key := r.getCacheKey(username)
-	val, err := r.Rdb.Get(ctx, key).Result()
-	if err != nil && !errors.Is(err, redis.Nil) {
-		return false, err
-	}
+func (r *AuthRepository) FetchToken(rawToken string) (*tokens.Token, error) {
+	key := r.getCacheKey(utils.Hash(rawToken))
 
-	exists := false
-	if err == nil && val != "" {
-		exists, err = strconv.ParseBool(val)
-		if err != nil {
-			return false, err
-		}
-	}
-
-	if !exists {
-		query := `SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)`
-		err = r.SqlClient.QueryRow(ctx, query, username).Scan(&exists)
-		if err != nil {
-			return false, err
-		}
-	}
-
-	err = r.Rdb.Set(ctx, key, strconv.FormatBool(exists), r.CacheTTL).Err()
+	query := `SELECT token, admin, upload, delete FROM users WHERE token = $1`
+	var token tokens.Token
+	err := r.SqlClient.QueryRow(ctx, query, utils.Hash(rawToken)).Scan(&token.Data, &token.Permissions.Admin, &token.Permissions.Upload, &token.Permissions.Delete)
 	if err != nil {
-		return false, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
 	}
 
-	return exists, nil
+	err = r.Rdb.Set(ctx, key, "true", r.CacheTTL).Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return &token, nil
 }

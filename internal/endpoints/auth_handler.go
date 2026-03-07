@@ -2,12 +2,13 @@ package endpoints
 
 import (
 	"artifactor/internal/repository"
-	"artifactor/pkg/requests"
+	"artifactor/pkg/http"
+	"artifactor/pkg/tokens"
 )
 
 type AuthRepo interface {
-	UserExists(username string) (bool, error)
-	CreateUser(request *requests.RegisterRequest) error
+	FetchToken(token string) (*tokens.Token, error)
+	CreateToken(request *http.CreateRequest) (string, error)
 }
 
 type AuthHandler struct {

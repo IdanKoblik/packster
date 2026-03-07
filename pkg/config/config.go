@@ -2,7 +2,6 @@ package config
 
 type Config struct {
 	FileUploadLimit int `yaml:"file_upload_limit,omitempty"`
-	SigningKey string `yaml:"signing_key"`
 
 	Sql PgsqlConfig `yaml:"sql"`
 	Redis RedisConfig `yaml:"redis"`
