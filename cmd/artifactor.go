@@ -14,6 +14,7 @@ import (
 	"artifactor/internal/redis"
 	"artifactor/internal/repository"
 	"artifactor/internal/sql"
+	"artifactor/internal/flags"
 
 	"github.com/gin-gonic/gin"
 )
@@ -73,11 +74,22 @@ func main() {
 	defer redis.Client.Close()
 	logging.Log.Info("Successfully connected to redis database!\n")
 
-	logging.Log.Info("Starting rest api")
-	router := gin.Default()
-
 	authRepo := repository.NewAuthRepository(redis.Client, sql.Conn)
 	authHandler := endpoints.NewAuthHandler(authRepo)
+
+	startFlagSystem(authRepo)
+	if len(os.Args) > 1 {
+		flag, err := flags.GetFlag(os.Args[1])
+		if err == nil {
+			err = flag.Handle(os.Args[1:])
+			if err != nil {
+				logging.Log.Error(err)
+			}
+		}
+	}
+
+	logging.Log.Info("Starting rest api")
+	router := gin.Default()
 
 	api := router.Group("/api")
 	api.Use(middleware.AuthMiddleware(authRepo))
@@ -116,4 +128,10 @@ func printBanner() {
 	}
 
 	fmt.Printf("\t\t%s • %s\n\n", MAINTAINER, buildTime)
+}
+
+func startFlagSystem(r *repository.AuthRepository) {
+	flags.InitFlagRegistry()
+
+	flags.RegisterFlag(flags.InitToken(r))
 }

@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"artifactor/internal/redis"
+	"artifactor/internal/sql"
 	httprequest "artifactor/pkg/http"
 	"artifactor/pkg/tokens"
 
@@ -237,6 +239,10 @@ func TestHandleHealth_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/health", nil)
+
+	if redis.Client == nil || sql.Conn == nil {
+		t.Skip("skipping test: redis or sql not connected")
+	}
 
 	handler := &AuthHandler{}
 	handler.HandleHealth(c)
