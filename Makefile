@@ -31,12 +31,18 @@ cover:
 	@echo ""
 	@echo "HTML report written to $(COVER_HTML)"
 
-# Run the full test suite (unit + integration) with coverage and HTML report.
-# Integration tests include the real-network tracker tests; they are slow
-# but exercise additional code paths not reached in short mode.
+# Run unit + integration tests with merged coverage.
+# Uses go tool covdata to properly merge two separate runs so both
+# test types contribute without double-counting overlapping lines.
+# cmd/ is excluded from coverpkg because main packages are not unit-testable.
 .PHONY: cover-integration
 cover-integration:
-	$(GO) test -race -coverprofile=$(COVER_OUT) -covermode=atomic -coverpkg=./... ./...
+	@mkdir -p .covunit .covint .covmerged
+	GOCOVERDIR=.covunit $(GO) test -short -race -cover -coverpkg=./internal/...,./pkg/... ./...
+	GOCOVERDIR=.covint  $(GO) test       -race -cover -coverpkg=./internal/...,./pkg/... ./...
+	$(GO) tool covdata merge -i=.covunit,.covint -o=.covmerged
+	$(GO) tool covdata textfmt -i=.covmerged -o=$(COVER_OUT)
+	@rm -rf .covunit .covint .covmerged
 	$(GO) tool cover -func=$(COVER_OUT)
 	$(GO) tool cover -html=$(COVER_OUT) -o $(COVER_HTML)
 	@echo ""
@@ -45,7 +51,7 @@ cover-integration:
 
 .PHONY: clean
 clean:
-	rm -rf bin $(COVER_OUT) $(COVER_HTML)
+	rm -rf bin $(COVER_OUT) $(COVER_HTML) .covunit .covint .covmerged
 
 .PHONY: run
 run: build
