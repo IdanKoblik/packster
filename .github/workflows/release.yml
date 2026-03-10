@@ -93,8 +93,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ inputs.version }}
-            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository | lower }}:${{ inputs.version }}
+            ghcr.io/${{ github.repository | lower }}:latest
 
   github-release:
     name: GitHub Release
