@@ -58,3 +58,10 @@ func TestGetFlag_NotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
+
+func TestInitToken(t *testing.T) {
+	flag := InitToken(nil)
+	assert.Equal(t, "--init-admin-token", flag.Cmd)
+	assert.Equal(t, "init-admin-token", flag.Name)
+	assert.NotNil(t, flag.Handle)
+}

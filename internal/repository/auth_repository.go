@@ -12,8 +12,20 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/redis/go-redis/v9"
 )
+
+type RedisInterface interface {
+	Get(ctx context.Context, key string) *redis.StringCmd
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	Del(ctx context.Context, keys ...string) *redis.IntCmd
+}
+
+type SQLInterface interface {
+	Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row
+}
 
 type AuthRepoInterface interface {
 	TokenExists(rawToken string) (bool, error)
@@ -24,8 +36,8 @@ type AuthRepoInterface interface {
 }
 
 type AuthRepository struct {
-	Rdb       *redis.Client
-	SqlClient *pgx.Conn
+	Rdb       RedisInterface
+	SqlClient SQLInterface
 	CacheTTL  time.Duration
 }
 

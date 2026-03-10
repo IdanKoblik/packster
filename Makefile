@@ -37,12 +37,7 @@ cover:
 # cmd/ is excluded from coverpkg because main packages are not unit-testable.
 .PHONY: cover-integration
 cover-integration:
-	@mkdir -p .covunit .covint .covmerged
-	GOCOVERDIR=.covunit $(GO) test -short -race -cover -coverpkg=./internal/...,./pkg/... ./...
-	GOCOVERDIR=.covint  $(GO) test       -race -cover -coverpkg=./internal/...,./pkg/... ./...
-	$(GO) tool covdata merge -i=.covunit,.covint -o=.covmerged
-	$(GO) tool covdata textfmt -i=.covmerged -o=$(COVER_OUT)
-	@rm -rf .covunit .covint .covmerged
+	$(GO) test -short -race -coverprofile=$(COVER_OUT) -coverpkg=./internal/... ./internal/...
 	$(GO) tool cover -func=$(COVER_OUT)
 	$(GO) tool cover -html=$(COVER_OUT) -o $(COVER_HTML)
 	@echo ""

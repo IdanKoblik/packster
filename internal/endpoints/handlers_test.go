@@ -251,3 +251,9 @@ func TestHandleHealth_Success(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "sql")
 	assert.Contains(t, w.Body.String(), "redis")
 }
+
+func TestNewAuthHandler(t *testing.T) {
+	handler := NewAuthHandler(nil)
+	assert.NotNil(t, handler)
+	assert.Nil(t, handler.Repo)
+}
