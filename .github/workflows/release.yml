@@ -87,14 +87,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ inputs.version }}
+            type=raw,value=latest
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/${{ github.repository | lower }}:${{ inputs.version }}
-            ghcr.io/${{ github.repository | lower }}:latest
+          tags: ${{ steps.meta.outputs.tags }}
 
   github-release:
     name: GitHub Release
