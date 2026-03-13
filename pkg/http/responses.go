@@ -1,6 +1,6 @@
 package http
 
 type HealthResponse struct {
-	SqlStatus string `json:"sql"`
+	MongoStatus string `json:"mongo"`
 	RedisStatus string `json:"redis"`
 }

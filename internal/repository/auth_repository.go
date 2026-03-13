@@ -1,59 +1,47 @@
 package repository
 
 import (
+	"artifactor/internal/utils"
 	"context"
-	"errors"
-	"fmt"
 	"time"
 
-	"artifactor/internal/utils"
-	"artifactor/pkg/http"
+	"artifactor/pkg/config"
+	requests "artifactor/pkg/http"
 	"artifactor/pkg/tokens"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-type RedisInterface interface {
-	Get(ctx context.Context, key string) *redis.StringCmd
-	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
-	Del(ctx context.Context, keys ...string) *redis.IntCmd
-}
-
-type SQLInterface interface {
-	Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error)
-	QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row
-}
-
-type AuthRepoInterface interface {
+type IAuthRepo interface {
 	TokenExists(rawToken string) (bool, error)
-	CreateToken(request *http.CreateRequest) (string, error)
+	CreateToken(request *requests.RegisterRequest) (string, error)
 	PruneToken(rawToken string) error
 	IsAdmin(rawToken string) (bool, error)
-	FetchToken(rawToken string) (*tokens.Token, error)
+	FetchToken(rawToken string) (*tokens.ApiToken, error)
 }
 
 type AuthRepository struct {
-	Rdb       RedisInterface
-	SqlClient SQLInterface
-	CacheTTL  time.Duration
+	RedisClient   *redis.Client
+	MongoClient   *mongo.Client
+	MongoDatabase *mongo.Database
+	Cfg           *config.Config
+	CacheTTL      time.Duration
 }
 
 const (
 	REDIS_TOKEN_PREFIX = "token:"
 )
 
-var (
-	ctx = context.Background()
-)
-
-func NewAuthRepository(redisClient *redis.Client, sqlClient *pgx.Conn) *AuthRepository {
+func NewAuthRepository(redisClient *redis.Client, mongoClient *mongo.Client, cfg *config.Config) *AuthRepository {
 	return &AuthRepository{
-		Rdb:       redisClient,
-		SqlClient: sqlClient,
-		CacheTTL:  5 * time.Minute,
+		RedisClient:   redisClient,
+		MongoClient:   mongoClient,
+		MongoDatabase: mongoClient.Database(cfg.Mongo.Database),
+		Cfg:           cfg,
+		CacheTTL:      5 * time.Minute,
 	}
 }
 
@@ -61,101 +49,102 @@ func (r *AuthRepository) getCacheKey(token string) string {
 	return REDIS_TOKEN_PREFIX + token
 }
 
-func (r *AuthRepository) CreateToken(request *http.CreateRequest) (string, error) {
-	query := `INSERT INTO "users"("token", "admin", "upload", "delete")
-				VALUES ($1, $2, $3, $4)`
+type TestableAuthRepository struct {
+	*AuthRepository
+	MockToken *tokens.ApiToken
+	MockError error
+}
 
-	token := uuid.NewString()
-	_, err := r.SqlClient.Exec(
-		ctx,
-		query,
-		utils.Hash(token),
-		request.Admin,
-		request.Upload,
-		request.Delete,
-	)
+func NewAuthRepositoryForTest(redisClient *redis.Client, cfg *config.Config) *TestableAuthRepository {
+	return &TestableAuthRepository{
+		AuthRepository: &AuthRepository{
+			RedisClient: redisClient,
+			Cfg:         cfg,
+			CacheTTL:    5 * time.Minute,
+		},
+	}
+}
 
+func (r *TestableAuthRepository) SetMockToken(token *tokens.ApiToken) {
+	r.MockToken = token
+}
+
+func (r *TestableAuthRepository) SetMockError(err error) {
+	r.MockError = err
+}
+
+func (r *TestableAuthRepository) FetchToken(rawToken string) (*tokens.ApiToken, error) {
+	hashedToken := utils.Hash(rawToken)
+	_, err := r.RedisClient.Get(context.Background(), r.getCacheKey(hashedToken)).Result()
 	if err != nil {
-		return "", fmt.Errorf("failed to create user: %w", err)
+		return nil, err
 	}
 
-	key := r.getCacheKey(utils.Hash(token))
-	err = r.Rdb.Set(ctx, key, "true", r.CacheTTL).Err()
+	if r.MockError != nil {
+		return nil, r.MockError
+	}
+
+	r.RedisClient.Set(context.Background(), r.getCacheKey(hashedToken), "_", r.CacheTTL)
+
+	return r.MockToken, nil
+}
+
+func (r *AuthRepository) CreateToken(request *requests.RegisterRequest) (string, error) {
+	collection := r.MongoDatabase.Collection(r.Cfg.Mongo.TokenCollection)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	token := uuid.NewString()
+	hashedToken := utils.Hash(token)
+	apiToken := tokens.ApiToken{
+		Token:    hashedToken,
+		Admin:    request.Admin,
+		Products: request.Products,
+	}
+
+	_, err := collection.InsertOne(ctx, apiToken)
 	if err != nil {
 		return "", err
 	}
+
+	r.RedisClient.Set(context.Background(), r.getCacheKey(hashedToken), "_", r.CacheTTL)
 
 	return token, nil
 }
 
 func (r *AuthRepository) IsAdmin(rawToken string) (bool, error) {
-	exists, err := r.TokenExists(rawToken)
+	token, err := r.FetchToken(rawToken)
 	if err != nil {
 		return false, err
 	}
 
-	if !exists {
-		return false, fmt.Errorf("Api token not found")
-	}
-
-	admin := false
-	err = r.SqlClient.QueryRow(
-		ctx,
-		`SELECT admin FROM users WHERE token = $1`,
-		utils.Hash(rawToken),
-	).Scan(&admin)
-
-	if err != nil {
-		return false, err
-	}
-
-	return admin, nil
+	return token.Admin, nil
 }
 
 func (r *AuthRepository) TokenExists(rawToken string) (bool, error) {
-	key := r.getCacheKey(utils.Hash(rawToken))
-	_, err := r.Rdb.Get(ctx, key).Result()
-	if err == nil {
-		return true, nil
-	}
-
-	query := `SELECT 1 FROM users WHERE token = $1`
-	var exists int
-
-	err = r.SqlClient.QueryRow(ctx, query, utils.Hash(rawToken)).Scan(&exists)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return false, nil
-		}
-		return false, err
-	}
-
-	err = r.Rdb.Set(ctx, key, "true", r.CacheTTL).Err()
+	token, err := r.FetchToken(rawToken)
 	if err != nil {
 		return false, err
 	}
 
-	return true, nil
+	return token != nil, nil
 }
 
 func (r *AuthRepository) PruneToken(rawToken string) error {
-	exists, err := r.TokenExists(rawToken)
+	hashedToken := utils.Hash(rawToken)
+	_, err := r.RedisClient.Get(context.Background(), r.getCacheKey(hashedToken)).Result()
 	if err != nil {
 		return err
 	}
 
-	if !exists {
-		return fmt.Errorf("%s does not exists", rawToken)
-	}
+	r.RedisClient.Del(context.Background(), r.getCacheKey(hashedToken))
+	collection := r.MongoDatabase.Collection(r.Cfg.Mongo.TokenCollection)
 
-	key := r.getCacheKey(utils.Hash(rawToken))
-	_, err = r.Rdb.Del(ctx, key).Result()
-	if err != nil {
-		return err
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	query := `DELETE FROM "users" WHERE "token" = $1`
-	_, err = r.SqlClient.Exec(ctx, query, utils.Hash(rawToken))
+	_, err = collection.DeleteMany(ctx, bson.M{"_id": utils.Hash(rawToken)})
 	if err != nil {
 		return err
 	}
@@ -163,23 +152,25 @@ func (r *AuthRepository) PruneToken(rawToken string) error {
 	return nil
 }
 
-func (r *AuthRepository) FetchToken(rawToken string) (*tokens.Token, error) {
-	exists, err := r.TokenExists(rawToken)
+func (r *AuthRepository) FetchToken(rawToken string) (*tokens.ApiToken, error) {
+	hashedToken := utils.Hash(rawToken)
+	_, err := r.RedisClient.Get(context.Background(), r.getCacheKey(hashedToken)).Result()
 	if err != nil {
 		return nil, err
 	}
 
-	if !exists {
-		return nil, fmt.Errorf("%s api token does not exists", rawToken)
-	}
+	collection := r.MongoDatabase.Collection(r.Cfg.Mongo.TokenCollection)
 
-	query := `SELECT token, admin, upload, delete FROM users WHERE token = $1`
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	var token tokens.Token
-	err = r.SqlClient.QueryRow(ctx, query, utils.Hash(rawToken)).Scan(&token.Data, &token.Permissions.Admin, &token.Permissions.Upload, &token.Permissions.Delete)
+	var apiToken tokens.ApiToken
+	err = collection.FindOne(ctx, bson.M{"_id": utils.Hash(rawToken)}).Decode(&apiToken)
 	if err != nil {
 		return nil, err
 	}
 
-	return &token, nil
+	r.RedisClient.Set(context.Background(), r.getCacheKey(hashedToken), "_", r.CacheTTL)
+
+	return &apiToken, nil
 }

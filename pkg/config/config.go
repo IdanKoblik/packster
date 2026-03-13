@@ -3,19 +3,18 @@ package config
 type Config struct {
 	FileUploadLimit int `yaml:"file_upload_limit,omitempty"`
 
-	Sql PgsqlConfig `yaml:"sql"`
+	Mongo MongoConfig `yaml:"mongo"`
 	Redis RedisConfig `yaml:"redis"`
 }
 
 type RedisConfig struct {
-	Addr string `yaml:"addr"`
+	Addr     string `yaml:"addr"`
 	Password string `yaml:"password,omitempty"`
-	DB int `yaml:"db,omitempty"`
+	DB       int    `yaml:"db,omitempty"`
 }
 
-type PgsqlConfig struct {
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
-	Addr     string `yaml:"addr"`
-	Database string `yaml:"database"`
+type MongoConfig struct {
+	ConnectionString string `yaml:"connection_string"`
+	Database         string `yaml:"database"`
+	TokenCollection  string `yaml:"token_collection"`
 }

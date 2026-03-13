@@ -1,20 +1,21 @@
 package flags
 
 import (
-	"context"
-
 	"artifactor/internal/logging"
 	"artifactor/internal/repository"
 	"artifactor/pkg/flags"
 	"artifactor/pkg/http"
+	"context"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func InitToken(repo *repository.AuthRepository) flags.Flag {
 	return flags.Flag{
-		Cmd: "--init-admin-token",
+		Cmd:  "--init-admin-token",
 		Name: "init-admin-token",
 		Args: []string{},
-		Description: []string {
+		Description: []string{
 			"Creates initial token that is an admin token.",
 			"Please remove this flag after initial use",
 		},
@@ -29,10 +30,8 @@ func InitToken(repo *repository.AuthRepository) flags.Flag {
 				return nil
 			}
 
-			token, err := repo.CreateToken(&http.CreateRequest{
+			token, err := repo.CreateToken(&http.RegisterRequest{
 				Admin: true,
-				Upload: true,
-				Delete: true,
 			})
 
 			if err != nil {
@@ -46,8 +45,9 @@ func InitToken(repo *repository.AuthRepository) flags.Flag {
 }
 
 func adminTokenExists(r *repository.AuthRepository) (bool, error) {
-	var count int
-	err := r.SqlClient.QueryRow(context.Background(), `SELECT COUNT(*) FROM users WHERE admin = true`).Scan(&count)
+	filter := bson.M{"admin": true}
+
+	count, err := r.MongoDatabase.Collection(r.Cfg.Mongo.TokenCollection).CountDocuments(context.Background(), filter)
 	if err != nil {
 		return false, err
 	}

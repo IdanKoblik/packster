@@ -15,7 +15,7 @@ func InitFlagRegistry() {
 }
 
 func RegisterFlag(flag flags.Flag) {
-	logging.Log.Infof("Registring %s flag. %s", flag.Name, flag.Usage())
+	logging.Log.Infof("Registering %s flag. %s", flag.Name, flag.Usage())
 	for _, v := range flag.Description {
 		logging.Log.Info(v)
 	}

@@ -4,6 +4,7 @@
 bin/
 artifactor
 config.yml
+mongo-init.js
 requests.http
 
 # Binaries for programs and plugins
@@ -33,5 +34,5 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/

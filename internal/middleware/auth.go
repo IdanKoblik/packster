@@ -9,7 +9,7 @@ import (
 
 const API_HEADER = "X-Api-Token"
 
-func AuthMiddleware(repo repository.AuthRepoInterface) gin.HandlerFunc {
+func AuthMiddleware(repo repository.IAuthRepo) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader(API_HEADER)
 		if authHeader == "" {

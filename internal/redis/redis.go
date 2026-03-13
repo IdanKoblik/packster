@@ -1,34 +1,39 @@
 package redis
 
 import (
+	"artifactor/pkg/config"
 	"context"
 	"fmt"
-	"artifactor/pkg/config"
 
 	"github.com/redis/go-redis/v9"
 )
 
-var Client *redis.Client
-
-func OpenConnection(cfg *config.RedisConfig) error {
-	Client = nil
+func OpenConnection(cfg *config.RedisConfig) (*redis.Client, error) {
 	if cfg == nil {
-		return fmt.Errorf("Missing redis config")
+		return nil, fmt.Errorf("Missing redis config")
 	}
 
-	Client = redis.NewClient(&redis.Options{
-		Addr: cfg.Addr,
+	client := redis.NewClient(&redis.Options{
+		Addr:     cfg.Addr,
 		Password: cfg.Password,
-		DB: cfg.DB,
+		DB:       cfg.DB,
 	})
 
-	return CheckHealth()
+	err := CheckHealth(client)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
 }
 
-func CheckHealth() error {
-	err := Client.Ping(context.Background()).Err()
+func CheckHealth(client *redis.Client) error {
+	if client == nil {
+		return fmt.Errorf("Missing redis client")
+	}
+
+	err := client.Ping(context.Background()).Err()
 	if err != nil {
-		Client = nil
 		return fmt.Errorf("Failed to ping redis: %v", err)
 	}
 

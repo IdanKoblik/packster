@@ -8,10 +8,10 @@ import (
 
 type AuthRepo interface {
 	TokenExists(token string) (bool, error)
-	CreateToken(request *http.CreateRequest) (string, error)
+	CreateToken(request *http.RegisterRequest) (string, error)
 	PruneToken(token string) error
 	IsAdmin(token string) (bool, error)
-	FetchToken(token string) (*tokens.Token, error)
+	FetchToken(token string) (*tokens.ApiToken, error)
 }
 
 type AuthHandler struct {

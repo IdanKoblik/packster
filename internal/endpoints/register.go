@@ -1,8 +1,8 @@
 package endpoints
 
 import (
-	"net/http"
 	requests "artifactor/pkg/http"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,7 +14,7 @@ func (h *AuthHandler) HandleRegister(c *gin.Context) {
 		return
 	}
 
-	var request requests.CreateRequest
+	var request requests.RegisterRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.String(http.StatusBadRequest, "Missing request body")
 		return

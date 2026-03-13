@@ -5,10 +5,6 @@ Robust package version management service designed to simplify the way developer
 > ⚠ THIS PROJECT IS UNDER DEVELOPMENT, THERE ISN'T ANY OFFICIAL RELEASE FOR NOW.
 >
 
-## Architecture
-
-![arch](assets/arch.png)
-
 ## Installation
 
 ### Building
@@ -25,16 +21,3 @@ make build
 | Variable    | Meaning                                                           |
 |-------------|-------------------------------------------------------------------|
 | CONFIG_PATH | Path to the config path, including file name (path/to/config.yml) |
-
-### Config
-
-Config example:
-```yaml
-file_upload_limit: 0 # MB (opt) 
-
-sql:
-  username: "username"
-  password: "password"
-  addr: "localhost:5173"
-  database: "db"
-```

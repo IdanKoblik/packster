@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"artifactor/internal/repository"
-	httprequest "artifactor/pkg/http"
+	requests "artifactor/pkg/http"
 	"artifactor/pkg/tokens"
 
 	"github.com/gin-gonic/gin"
@@ -24,7 +24,7 @@ func (m *MockAuthRepo) TokenExists(rawToken string) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockAuthRepo) CreateToken(request *httprequest.CreateRequest) (string, error) {
+func (m *MockAuthRepo) CreateToken(request *requests.RegisterRequest) (string, error) {
 	args := m.Called(request)
 	return args.String(0), args.Error(1)
 }
@@ -39,12 +39,12 @@ func (m *MockAuthRepo) IsAdmin(rawToken string) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockAuthRepo) FetchToken(rawToken string) (*tokens.Token, error) {
+func (m *MockAuthRepo) FetchToken(rawToken string) (*tokens.ApiToken, error) {
 	args := m.Called(rawToken)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*tokens.Token), args.Error(1)
+	return args.Get(0).(*tokens.ApiToken), args.Error(1)
 }
 
 func TestAuthMiddleware_MissingHeader(t *testing.T) {
@@ -166,4 +166,4 @@ func TestAuthMiddleware_IsAdminError(t *testing.T) {
 	assert.True(t, c.IsAborted())
 }
 
-var _ repository.AuthRepoInterface = (*MockAuthRepo)(nil)
+var _ repository.IAuthRepo = (*MockAuthRepo)(nil)

@@ -1,11 +1,10 @@
 file_upload_limit: 20
 signing_key: "key"
 
-sql:
-  username: "admin"
-  password: "admin"
-  addr: "localhost:5432"
+mongo:
+  connection_string: "mongodb://localhost:27017/"
   database: "artifactor"
+  token_collection: "tokens"
 
 redis:
   addr: "localhost:6379"

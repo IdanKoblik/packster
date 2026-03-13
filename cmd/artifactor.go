@@ -9,12 +9,12 @@ import (
 
 	"artifactor/internal/config"
 	"artifactor/internal/endpoints"
+	"artifactor/internal/flags"
 	"artifactor/internal/logging"
 	"artifactor/internal/middleware"
+	"artifactor/internal/mongo"
 	"artifactor/internal/redis"
 	"artifactor/internal/repository"
-	"artifactor/internal/sql"
-	"artifactor/internal/flags"
 
 	"github.com/gin-gonic/gin"
 )
@@ -46,35 +46,33 @@ func main() {
 	}
 
 	logging.Log.Debugf("Max file size that can be uploaded: %d MB\n", cfg.FileUploadLimit)
-	logging.Log.Info("Connecting to pgsql database.")
-	logging.Log.Debugf("Username: %s", cfg.Sql.Username)
-	logging.Log.Debugf("Password: %s", generatePasswordMask())
-	logging.Log.Debugf("Addr: %s", cfg.Sql.Addr)
-	logging.Log.Debugf("Database: %s\n", cfg.Sql.Database)
+	logging.Log.Info("Connecting to mongo database.")
+	logging.Log.Debugf("Connection URL: %s", generateMask())
+	logging.Log.Debugf("Database: %s", cfg.Mongo.Database)
 
-	err = sql.OpenConnection(&cfg.Sql)
+	mongoClient, err := mongo.OpenConnection(&cfg.Mongo)
 	if err != nil {
-		logging.Log.Error("Failed to connect to pgsql database\n", err)
+		logging.Log.Error("Failed to connect to mongo database\n", err)
 		os.Exit(1)
 	}
 
-	defer sql.Conn.Close(context.Background())
-	logging.Log.Info("Successfully connected to pgsql database!\n")
+	defer mongoClient.Disconnect(context.Background())
+	logging.Log.Info("Successfully connected to mongo database!\n")
 
 	logging.Log.Info("Connecting to redis database.")
 	logging.Log.Debugf("Addr: %s", cfg.Redis.Addr)
-	logging.Log.Debugf("Password: %s", generatePasswordMask())
+	logging.Log.Debugf("Password: %s", generateMask())
 
-	err = redis.OpenConnection(&cfg.Redis)
+	redisClient, err := redis.OpenConnection(&cfg.Redis)
 	if err != nil {
 		logging.Log.Error("Failed to connect to redis database\n", err)
 		os.Exit(1)
 	}
 
-	defer redis.Client.Close()
+	defer redisClient.Close()
 	logging.Log.Info("Successfully connected to redis database!\n")
 
-	authRepo := repository.NewAuthRepository(redis.Client, sql.Conn)
+	authRepo := repository.NewAuthRepository(redisClient, mongoClient, &cfg)
 	authHandler := endpoints.NewAuthHandler(authRepo)
 
 	startFlagSystem(authRepo)
@@ -111,7 +109,7 @@ func main() {
 	}
 }
 
-func generatePasswordMask() string {
+func generateMask() string {
 	n := rand.N(18) + 5
 	return strings.Repeat("*", n)
 }
