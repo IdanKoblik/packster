@@ -1,14 +1,13 @@
 package middleware
 
 import (
-	"artifactor/pkg"
+	"artifactor/pkg/types"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"artifactor/internal/repository"
-	requests "artifactor/pkg/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +23,7 @@ func (m *MockAuthRepo) TokenExists(rawToken string) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockAuthRepo) CreateToken(request *requests.RegisterRequest) (string, error) {
+func (m *MockAuthRepo) CreateToken(request *types.RegisterRequest) (string, error) {
 	args := m.Called(request)
 	return args.String(0), args.Error(1)
 }
@@ -39,12 +38,12 @@ func (m *MockAuthRepo) IsAdmin(rawToken string) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockAuthRepo) FetchToken(rawToken string) (*pkg.ApiToken, error) {
+func (m *MockAuthRepo) FetchToken(rawToken string) (*types.ApiToken, error) {
 	args := m.Called(rawToken)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*pkg.ApiToken), args.Error(1)
+	return args.Get(0).(*types.ApiToken), args.Error(1)
 }
 
 func TestAuthMiddleware_MissingHeader(t *testing.T) {
@@ -73,7 +72,7 @@ func TestAuthMiddleware_InvalidToken(t *testing.T) {
 	c.Request.Header.Set(API_HEADER, "invalid-token")
 
 	mockRepo := new(MockAuthRepo)
-	mockRepo.On("TokenExists", "invalid-token").Return(false, nil)
+	mockRepo.On("FetchToken", "invalid-token").Return(nil, nil)
 
 	handler := AuthMiddleware(mockRepo)
 	handler(c)
@@ -81,9 +80,10 @@ func TestAuthMiddleware_InvalidToken(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	assert.Contains(t, w.Body.String(), "Invalid api token")
 	assert.True(t, c.IsAborted())
+	mockRepo.AssertExpectations(t)
 }
 
-func TestAuthMiddleware_TokenExistsError(t *testing.T) {
+func TestAuthMiddleware_FetchTokenError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	w := httptest.NewRecorder()
@@ -92,14 +92,15 @@ func TestAuthMiddleware_TokenExistsError(t *testing.T) {
 	c.Request.Header.Set(API_HEADER, "error-token")
 
 	mockRepo := new(MockAuthRepo)
-	mockRepo.On("TokenExists", "error-token").Return(false, errors.New("redis error"))
+	mockRepo.On("FetchToken", "error-token").Return(nil, errors.New("db error"))
 
 	handler := AuthMiddleware(mockRepo)
 	handler(c)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
-	assert.Contains(t, w.Body.String(), "redis error")
+	assert.Contains(t, w.Body.String(), "db error")
 	assert.True(t, c.IsAborted())
+	mockRepo.AssertExpectations(t)
 }
 
 func TestAuthMiddleware_Success_Admin(t *testing.T) {
@@ -111,7 +112,7 @@ func TestAuthMiddleware_Success_Admin(t *testing.T) {
 	c.Request.Header.Set(API_HEADER, "valid-admin-token")
 
 	mockRepo := new(MockAuthRepo)
-	mockRepo.On("TokenExists", "valid-admin-token").Return(true, nil)
+	mockRepo.On("FetchToken", "valid-admin-token").Return(&types.ApiToken{Token: "hashed", Admin: true}, nil)
 	mockRepo.On("IsAdmin", "valid-admin-token").Return(true, nil)
 
 	handler := AuthMiddleware(mockRepo)
@@ -133,7 +134,7 @@ func TestAuthMiddleware_Success_NonAdmin(t *testing.T) {
 	c.Request.Header.Set(API_HEADER, "valid-user-token")
 
 	mockRepo := new(MockAuthRepo)
-	mockRepo.On("TokenExists", "valid-user-token").Return(true, nil)
+	mockRepo.On("FetchToken", "valid-user-token").Return(&types.ApiToken{Token: "hashed", Admin: false}, nil)
 	mockRepo.On("IsAdmin", "valid-user-token").Return(false, nil)
 
 	handler := AuthMiddleware(mockRepo)
@@ -155,7 +156,7 @@ func TestAuthMiddleware_IsAdminError(t *testing.T) {
 	c.Request.Header.Set(API_HEADER, "valid-token")
 
 	mockRepo := new(MockAuthRepo)
-	mockRepo.On("TokenExists", "valid-token").Return(true, nil)
+	mockRepo.On("FetchToken", "valid-token").Return(&types.ApiToken{Token: "hashed"}, nil)
 	mockRepo.On("IsAdmin", "valid-token").Return(false, errors.New("db error"))
 
 	handler := AuthMiddleware(mockRepo)
@@ -164,6 +165,7 @@ func TestAuthMiddleware_IsAdminError(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	assert.Contains(t, w.Body.String(), "db error")
 	assert.True(t, c.IsAborted())
+	mockRepo.AssertExpectations(t)
 }
 
 var _ repository.IAuthRepo = (*MockAuthRepo)(nil)

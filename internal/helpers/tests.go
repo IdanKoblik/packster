@@ -32,3 +32,21 @@ func SetupRepo(t *testing.T) (*repository.AuthRepository, func()) {
 
 	return repo, cleanup
 }
+
+func SetupProductRepo(t *testing.T) (*repository.ProductRepository, func()) {
+	t.Helper()
+	path := filepath.Join("..", "..", "fixtures", "example.yml")
+	cfg, err := internalconfig.ParseConfig(path)
+	require.NoError(t, err)
+
+	mongoClient, err := internalmongo.OpenConnection(&cfg.Mongo)
+	require.NoError(t, err)
+
+	repo := repository.NewProductRepository(mongoClient, &cfg)
+
+	cleanup := func() {
+		mongoClient.Disconnect(nil)
+	}
+
+	return repo, cleanup
+}

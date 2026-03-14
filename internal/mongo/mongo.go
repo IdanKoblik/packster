@@ -15,6 +15,11 @@ func OpenConnection(cfg *config.MongoConfig) (*mongo.Client, error) {
 		return nil, err
 	}
 
+	err = CheckHealth(client)
+	if err != nil {
+		return nil, err
+	}
+
 	return client, nil
 }
 

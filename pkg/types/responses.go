@@ -1,4 +1,4 @@
-package http
+package types
 
 type HealthResponse struct {
 	MongoStatus string `json:"mongo"`

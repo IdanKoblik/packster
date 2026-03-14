@@ -1,11 +1,10 @@
 package repository_test
 
 import (
-	"artifactor/pkg"
+	"artifactor/pkg/types"
 	"testing"
 
 	"artifactor/internal/helpers"
-	requests "artifactor/pkg/http"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,7 +14,7 @@ func TestCreateToken_Success(t *testing.T) {
 	repo, cleanup := helpers.SetupRepo(t)
 	defer cleanup()
 
-	req := &requests.RegisterRequest{Admin: false, Products: []pkg.TokenProduct{}}
+	req := &types.RegisterRequest{Admin: false}
 	token, err := repo.CreateToken(req)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, token)
@@ -27,10 +26,7 @@ func TestFetchToken_Success(t *testing.T) {
 	repo, cleanup := helpers.SetupRepo(t)
 	defer cleanup()
 
-	req := &requests.RegisterRequest{
-		Admin:    false,
-		Products: []pkg.TokenProduct{{Name: "test-product"}},
-	}
+	req := &types.RegisterRequest{Admin: false}
 	token, err := repo.CreateToken(req)
 	require.NoError(t, err)
 	defer repo.PruneToken(token)
@@ -39,8 +35,6 @@ func TestFetchToken_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, apiToken)
 	assert.False(t, apiToken.Admin)
-	assert.Len(t, apiToken.Products, 1)
-	assert.Equal(t, "test-product", apiToken.Products[0].Name)
 }
 
 func TestFetchToken_NotFound(t *testing.T) {
@@ -55,7 +49,7 @@ func TestTokenExists_Exists(t *testing.T) {
 	repo, cleanup := helpers.SetupRepo(t)
 	defer cleanup()
 
-	req := &requests.RegisterRequest{}
+	req := &types.RegisterRequest{}
 	token, err := repo.CreateToken(req)
 	require.NoError(t, err)
 	defer repo.PruneToken(token)
@@ -78,7 +72,7 @@ func TestIsAdmin_True(t *testing.T) {
 	repo, cleanup := helpers.SetupRepo(t)
 	defer cleanup()
 
-	req := &requests.RegisterRequest{Admin: true}
+	req := &types.RegisterRequest{Admin: true}
 	token, err := repo.CreateToken(req)
 	require.NoError(t, err)
 	defer repo.PruneToken(token)
@@ -92,7 +86,7 @@ func TestIsAdmin_False(t *testing.T) {
 	repo, cleanup := helpers.SetupRepo(t)
 	defer cleanup()
 
-	req := &requests.RegisterRequest{Admin: false}
+	req := &types.RegisterRequest{Admin: false}
 	token, err := repo.CreateToken(req)
 	require.NoError(t, err)
 	defer repo.PruneToken(token)
@@ -106,7 +100,7 @@ func TestPruneToken_Success(t *testing.T) {
 	repo, cleanup := helpers.SetupRepo(t)
 	defer cleanup()
 
-	req := &requests.RegisterRequest{}
+	req := &types.RegisterRequest{}
 	token, err := repo.CreateToken(req)
 	require.NoError(t, err)
 

@@ -1,0 +1,188 @@
+package repository_test
+
+import (
+	"artifactor/internal/helpers"
+	"artifactor/pkg/types"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+const testProductToken = "test-product-token"
+
+func makeProduct(name string) *types.Product {
+	return &types.Product{
+		Name: name,
+		Tokens: map[string]types.TokenPermissions{
+			testProductToken: {
+				Maintainer: true,
+				Download:   true,
+				Upload:     true,
+				Delete:     true,
+			},
+		},
+		Versions: map[string]types.Version{},
+	}
+}
+
+func TestCreateProduct_Success(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	product := makeProduct("test-create-product")
+	err := repo.CreateProduct(product)
+	require.NoError(t, err)
+	defer repo.DeleteProduct("test-create-product", testProductToken, true)
+}
+
+func TestCreateProduct_Duplicate(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	product := makeProduct("test-dup-product")
+	err := repo.CreateProduct(product)
+	require.NoError(t, err)
+	defer repo.DeleteProduct("test-dup-product", testProductToken, true)
+
+	err = repo.CreateProduct(makeProduct("test-dup-product"))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "product already exists")
+}
+
+func TestFetchProduct_Success(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	product := makeProduct("test-fetch-product")
+	err := repo.CreateProduct(product)
+	require.NoError(t, err)
+	defer repo.DeleteProduct("test-fetch-product", testProductToken, true)
+
+	fetched, err := repo.FetchProduct("test-fetch-product")
+	assert.NoError(t, err)
+	assert.NotNil(t, fetched)
+	assert.Equal(t, "test-fetch-product", fetched.Name)
+}
+
+func TestFetchProduct_NotFound(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	fetched, err := repo.FetchProduct("nonexistent-product-xyz-12345")
+	assert.NoError(t, err)
+	assert.Nil(t, fetched)
+}
+
+func TestDeleteProduct_Success(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	product := makeProduct("test-delete-product")
+	err := repo.CreateProduct(product)
+	require.NoError(t, err)
+
+	err = repo.DeleteProduct("test-delete-product", testProductToken, true)
+	assert.NoError(t, err)
+
+	fetched, err := repo.FetchProduct("test-delete-product")
+	assert.NoError(t, err)
+	assert.Nil(t, fetched)
+}
+
+func TestDeleteProduct_MissingPermission(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	product := makeProduct("test-delete-noperm")
+	err := repo.CreateProduct(product)
+	require.NoError(t, err)
+	defer repo.DeleteProduct("test-delete-noperm", testProductToken, true)
+
+	err = repo.DeleteProduct("test-delete-noperm", "unknown-token", false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "missing delete permission")
+}
+
+func TestAddToken_Success(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	product := makeProduct("test-addtoken-product")
+	err := repo.CreateProduct(product)
+	require.NoError(t, err)
+	defer repo.DeleteProduct("test-addtoken-product", testProductToken, true)
+
+	newPerms := types.TokenPermissions{Download: true}
+	err = repo.AddToken("test-addtoken-product", testProductToken, "new-token", newPerms, true)
+	assert.NoError(t, err)
+}
+
+func TestAddToken_ProductNotFound(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	newPerms := types.TokenPermissions{Download: true}
+	err := repo.AddToken("nonexistent-product", testProductToken, "new-token", newPerms, true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "product not found")
+}
+
+func TestAddToken_MissingMaintainerPermission(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	product := makeProduct("test-addtoken-noperm")
+	err := repo.CreateProduct(product)
+	require.NoError(t, err)
+	defer repo.DeleteProduct("test-addtoken-noperm", testProductToken, true)
+
+	newPerms := types.TokenPermissions{Download: true}
+	err = repo.AddToken("test-addtoken-noperm", "unknown-token", "new-token", newPerms, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "missing maintainer permission")
+}
+
+func TestDeleteToken_Success(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	const targetToken = "token-to-delete"
+	product := &types.Product{
+		Name: "test-deletetoken-product",
+		Tokens: map[string]types.TokenPermissions{
+			testProductToken: {Maintainer: true},
+			targetToken:      {Download: true},
+		},
+		Versions: map[string]types.Version{},
+	}
+	err := repo.CreateProduct(product)
+	require.NoError(t, err)
+	defer repo.DeleteProduct("test-deletetoken-product", testProductToken, true)
+
+	err = repo.DeleteToken("test-deletetoken-product", testProductToken, targetToken, true)
+	assert.NoError(t, err)
+}
+
+func TestDeleteToken_ProductNotFound(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	err := repo.DeleteToken("nonexistent-product", testProductToken, "some-token", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "product not found")
+}
+
+func TestDeleteToken_MissingMaintainerPermission(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	product := makeProduct("test-deletetoken-noperm")
+	err := repo.CreateProduct(product)
+	require.NoError(t, err)
+	defer repo.DeleteProduct("test-deletetoken-noperm", testProductToken, true)
+
+	err = repo.DeleteToken("test-deletetoken-noperm", "unknown-token", "some-token", false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "missing maintainer permission")
+}

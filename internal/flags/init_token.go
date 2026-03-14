@@ -4,7 +4,7 @@ import (
 	"artifactor/internal/logging"
 	"artifactor/internal/repository"
 	"artifactor/pkg/flags"
-	"artifactor/pkg/http"
+	"artifactor/pkg/types"
 	"context"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -30,7 +30,7 @@ func InitToken(repo *repository.AuthRepository) flags.Flag {
 				return nil
 			}
 
-			token, err := repo.CreateToken(&http.RegisterRequest{
+			token, err := repo.CreateToken(&types.RegisterRequest{
 				Admin: true,
 			})
 

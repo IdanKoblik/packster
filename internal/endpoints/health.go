@@ -3,7 +3,7 @@ package endpoints
 import (
 	internalmongo "artifactor/internal/mongo"
 	internalredis "artifactor/internal/redis"
-	responses "artifactor/pkg/http"
+	responses "artifactor/pkg/types"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

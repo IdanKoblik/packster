@@ -1,23 +1,27 @@
 package main
 
 import (
-	"artifactor/internal/endpoints"
-	"artifactor/internal/endpoints/auth"
 	"context"
 	"fmt"
 	"math/rand/v2"
 	"os"
 	"strings"
 
-	"artifactor/internal/config"
+	internalconfig "artifactor/internal/config"
+	"artifactor/internal/endpoints"
+	"artifactor/internal/endpoints/auth"
+	"artifactor/internal/endpoints/product"
 	"artifactor/internal/flags"
 	"artifactor/internal/logging"
 	"artifactor/internal/middleware"
-	"artifactor/internal/mongo"
-	"artifactor/internal/redis"
+	internalmongo "artifactor/internal/mongo"
+	internalredis "artifactor/internal/redis"
 	"artifactor/internal/repository"
+	"artifactor/pkg/config"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 const BANNER = `
@@ -40,7 +44,7 @@ func main() {
 	logging.SetupLogger()
 	printBanner()
 
-	cfg, err := config.ParseConfig(os.Getenv("CONFIG_PATH"))
+	cfg, err := internalconfig.ParseConfig(os.Getenv("CONFIG_PATH"))
 	if err != nil {
 		logging.Log.Error(err)
 		os.Exit(1)
@@ -51,7 +55,7 @@ func main() {
 	logging.Log.Debugf("Connection URL: %s", generateMask())
 	logging.Log.Debugf("Database: %s", cfg.Mongo.Database)
 
-	mongoClient, err := mongo.OpenConnection(&cfg.Mongo)
+	mongoClient, err := internalmongo.OpenConnection(&cfg.Mongo)
 	if err != nil {
 		logging.Log.Error("Failed to connect to mongo database\n", err)
 		os.Exit(1)
@@ -64,7 +68,7 @@ func main() {
 	logging.Log.Debugf("Addr: %s", cfg.Redis.Addr)
 	logging.Log.Debugf("Password: %s", generateMask())
 
-	redisClient, err := redis.OpenConnection(&cfg.Redis)
+	redisClient, err := internalredis.OpenConnection(&cfg.Redis)
 	if err != nil {
 		logging.Log.Error("Failed to connect to redis database\n", err)
 		os.Exit(1)
@@ -74,6 +78,27 @@ func main() {
 	logging.Log.Info("Successfully connected to redis database!\n")
 
 	authRepo := repository.NewAuthRepository(redisClient, mongoClient, &cfg)
+
+	logging.Log.Info("Starting rest api")
+	router := gin.Default()
+
+	api := router.Group("/api")
+
+	setupAuthEndpoints(authRepo, redisClient, mongoClient, api)
+	setupProductEndpoints(authRepo, mongoClient, &cfg, api)
+
+	addr := os.Getenv("SERVER_ADDR")
+	if addr == "" {
+		addr = "0.0.0.0:8080"
+	}
+
+	if err := router.Run(addr); err != nil {
+		logging.Log.Error("Failed to start rest api\n", err)
+		os.Exit(1)
+	}
+}
+
+func setupAuthEndpoints(authRepo *repository.AuthRepository, redisClient *redis.Client, mongoClient *mongo.Client, api *gin.RouterGroup) {
 	authHandler := auth.NewAuthHandler(authRepo)
 
 	startFlagSystem(authRepo)
@@ -87,10 +112,6 @@ func main() {
 		}
 	}
 
-	logging.Log.Info("Starting rest api")
-	router := gin.Default()
-
-	api := router.Group("/api")
 	api.Use(middleware.AuthMiddleware(authRepo))
 	{
 		api.PUT("/register", authHandler.HandleRegister)
@@ -100,15 +121,20 @@ func main() {
 			endpoints.HandleHealth(c, mongoClient, redisClient)
 		})
 	}
+}
 
-	addr := os.Getenv("SERVER_ADDR")
-	if addr == "" {
-		addr = "0.0.0.0:8080"
-	}
+func setupProductEndpoints(authRepo repository.IAuthRepo, mongoClient *mongo.Client, cfg *config.Config, api *gin.RouterGroup) {
+	productRepo := repository.NewProductRepository(mongoClient, cfg)
+	productHandler := product.NewProductHandler(productRepo)
 
-	if err := router.Run(addr); err != nil {
-		logging.Log.Error("Failed to start rest api\n", err)
-		os.Exit(1)
+	productApi := api.Group("/product")
+	productApi.Use(middleware.AuthMiddleware(authRepo))
+	{
+		productApi.PUT("/create", productHandler.HandleCreate)
+		productApi.DELETE("/delete/:product", productHandler.HandleDelete)
+		productApi.GET("/fetch/:product", productHandler.HandleFetch)
+		productApi.DELETE("/modify/:action", productHandler.HandleModify)
+		productApi.PUT("/modify/:action", productHandler.HandleModify)
 	}
 }
 

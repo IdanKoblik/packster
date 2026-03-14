@@ -5,6 +5,7 @@ mongo:
   connection_string: "mongodb://localhost:27017/"
   database: "artifactor"
   token_collection: "tokens"
+  product_collection: "products"
 
 redis:
   addr: "localhost:6379"
