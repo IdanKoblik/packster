@@ -20,11 +20,7 @@ func TestHandleHealth_Success(t *testing.T) {
 	repo, cleanup := helpers.SetupRepo(t)
 	defer cleanup()
 
-	handler := &AuthHandler{
-		Repo: repo,
-	}
-
-	handler.HandleHealth(c)
+	HandleHealth(c, repo.MongoClient, repo.RedisClient)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "mongo")
@@ -37,14 +33,12 @@ func TestHandleHealth_Failure(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/health", nil)
 
-	handler := &AuthHandler{
-		Repo: &repository.AuthRepository{
-			MongoClient: nil,
-			RedisClient: nil,
-		},
+	repo := repository.AuthRepository{
+		MongoClient: nil,
+		RedisClient: nil,
 	}
 
-	handler.HandleHealth(c)
+	HandleHealth(c, repo.MongoClient, repo.RedisClient)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Contains(t, w.Body.String(), "Missing mongo client")

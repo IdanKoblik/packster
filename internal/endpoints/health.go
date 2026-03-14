@@ -1,35 +1,30 @@
 package endpoints
 
 import (
-	"artifactor/internal/mongo"
-	"artifactor/internal/redis"
-	"artifactor/internal/repository"
+	internalmongo "artifactor/internal/mongo"
+	internalredis "artifactor/internal/redis"
 	responses "artifactor/pkg/http"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-func (h *AuthHandler) HandleHealth(c *gin.Context) {
+func HandleHealth(c *gin.Context, mongo *mongo.Client, redis *redis.Client) {
 	response := responses.HealthResponse{
 		MongoStatus: "Mongo is fine",
 		RedisStatus: "Redis is fine",
 	}
 
-	authRepository, ok := h.Repo.(*repository.AuthRepository)
-	if !ok {
-		c.String(http.StatusInternalServerError, "NOT GOOD PLEASE CONTACT PROJECT MAINTAINER")
-		return
-	}
-
 	status := http.StatusOK
-	err := mongo.CheckHealth(authRepository.MongoClient)
+	err := internalmongo.CheckHealth(mongo)
 	if err != nil {
 		response.MongoStatus = err.Error()
 		status = http.StatusInternalServerError
 	}
 
-	err = redis.CheckHealth(authRepository.RedisClient)
+	err = internalredis.CheckHealth(redis)
 	if err != nil {
 		response.RedisStatus = err.Error()
 		status = http.StatusInternalServerError
