@@ -11,6 +11,7 @@ type ProductRepo interface {
 	FetchProduct(name string) (*types.Product, error)
 	DeleteToken(productName, sourceToken, targetToken string, admin bool) error
 	AddToken(productName, sourceToken, targetToken string, permissions types.TokenPermissions, admin bool) error
+	AddVersion(productName, version, token string, admin bool, v types.Version) error
 	DeleteVersion(productName, version, token string, admin bool) error
 }
 

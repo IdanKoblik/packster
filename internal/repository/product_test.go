@@ -186,3 +186,64 @@ func TestDeleteToken_MissingMaintainerPermission(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing maintainer permission")
 }
+
+func TestAddVersion_Success(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	product := makeProduct("test-addversion-product")
+	err := repo.CreateProduct(product)
+	require.NoError(t, err)
+	defer repo.DeleteProduct("test-addversion-product", testProductToken, true)
+
+	v := types.Version{Path: "/some/path/file.zip", Checksum: "abc123"}
+	err = repo.AddVersion("test-addversion-product", "1.0.0", testProductToken, false, v)
+	assert.NoError(t, err)
+
+	fetched, err := repo.FetchProduct("test-addversion-product")
+	require.NoError(t, err)
+	assert.Equal(t, v, fetched.Versions["1.0.0"])
+}
+
+func TestAddVersion_ProductNotFound(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	v := types.Version{Path: "/some/path/file.zip", Checksum: "abc123"}
+	err := repo.AddVersion("nonexistent-product", "1.0.0", testProductToken, false, v)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "product not found")
+}
+
+func TestAddVersion_VersionAlreadyExists(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	product := makeProduct("test-addversion-dup")
+	err := repo.CreateProduct(product)
+	require.NoError(t, err)
+	defer repo.DeleteProduct("test-addversion-dup", testProductToken, true)
+
+	v := types.Version{Path: "/some/path/file.zip", Checksum: "abc123"}
+	err = repo.AddVersion("test-addversion-dup", "1.0.0", testProductToken, false, v)
+	require.NoError(t, err)
+
+	err = repo.AddVersion("test-addversion-dup", "1.0.0", testProductToken, false, v)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "version already exists")
+}
+
+func TestAddVersion_MissingUploadPermission(t *testing.T) {
+	repo, cleanup := helpers.SetupProductRepo(t)
+	defer cleanup()
+
+	product := makeProduct("test-addversion-noperm")
+	err := repo.CreateProduct(product)
+	require.NoError(t, err)
+	defer repo.DeleteProduct("test-addversion-noperm", testProductToken, true)
+
+	v := types.Version{Path: "/some/path/file.zip", Checksum: "abc123"}
+	err = repo.AddVersion("test-addversion-noperm", "1.0.0", "unknown-token", false, v)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "missing upload permission")
+}

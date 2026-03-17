@@ -1,5 +1,7 @@
 package types
 
+import "mime/multipart"
+
 type RegisterRequest struct {
 	Admin bool `json:"admin,omitempty"`
 }
@@ -23,4 +25,10 @@ type AddProductTokenRequest struct {
 type DeleteVersionRequest struct {
 	Product string `json:"product"`
 	Version string `json:"version"`
+}
+
+type UploadRequest struct {
+	Product string                `form:"product" binding:"required"`
+	Version string                `form:"version" binding:"required"`
+	File    *multipart.FileHeader `form:"file" binding:"required"`
 }

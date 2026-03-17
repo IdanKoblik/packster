@@ -19,6 +19,7 @@ type IProductRepo interface {
 	DeleteToken(productName, sourceToken, targetToken string, admin bool) error
 	AddToken(productName, sourceToken, targetToken string, permissions types.TokenPermissions, admin bool) error
 	DeleteVersion(productName, version, token string, admin bool) error
+	AddVersion(productName, version, token string, admin bool, v types.Version) error
 }
 
 type ProductRepository struct {
@@ -182,6 +183,39 @@ func (r *ProductRepository) DeleteVersion(productName, version, token string, ad
 	}
 
 	delete(product.Versions, version)
+	collection := r.MongoDatabase.Collection(r.Cfg.Mongo.ProductCollection)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": productName}, bson.M{"$set": product})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *ProductRepository) AddVersion(productName, version, token string, admin bool, v types.Version) error {
+	product, err := r.FetchProduct(productName)
+	if err != nil {
+		return err
+	}
+
+	if product == nil {
+		return errors.New("product not found")
+	}
+
+	permissions := product.Tokens[utils.Hash(token)]
+	if !admin && !permissions.Upload {
+		return errors.New("missing upload permission")
+	}
+
+	if _, ok := product.Versions[version]; ok {
+		return errors.New("version already exists")
+	}
+
+	product.Versions[version] = v
 	collection := r.MongoDatabase.Collection(r.Cfg.Mongo.ProductCollection)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

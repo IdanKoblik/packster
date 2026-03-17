@@ -135,6 +135,7 @@ func setupProductEndpoints(authRepo repository.IAuthRepo, mongoClient *mongo.Cli
 		productApi.GET("/fetch/:product", productHandler.HandleFetch)
 		productApi.DELETE("/modify/:action", productHandler.HandleModify)
 		productApi.PUT("/modify/:action", productHandler.HandleModify)
+		productApi.POST("/upload", productHandler.HandleUpload)
 	}
 }
 

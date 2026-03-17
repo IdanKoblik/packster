@@ -42,3 +42,8 @@ func (m *mockProductRepo) DeleteVersion(productName, version, token string, admi
 	args := m.Called(productName, version, token, admin)
 	return args.Error(0)
 }
+
+func (m *mockProductRepo) AddVersion(productName, version, token string, admin bool, v types.Version) error {
+	args := m.Called(productName, version, token, admin, v)
+	return args.Error(0)
+}
