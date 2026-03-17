@@ -50,170 +50,170 @@ func productWithToken(token string, perms types.TokenPermissions) *types.Product
 	}
 }
 
-func TestHandleUpload_InvalidForm(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = newUploadRequest(t, "", "", "", "")
+func TestHandleUpload(t *testing.T) {
+	boolPtr := func(b bool) *bool { return &b }
 
-	handler := &ProductHandler{Repo: &mockProductRepo{}}
-	handler.HandleUpload(c)
+	tests := []struct {
+		name         string
+		product      string
+		version      string
+		filename     string
+		content      string
+		admin        *bool
+		token        string
+		setupMock    func(*mockProductRepo)
+		wantStatus   int
+		wantBody     string
+		needsTempDir bool
+	}{
+		{
+			name:       "InvalidForm",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "FetchProductError",
+			product:  "myproduct",
+			version:  "1.0.0",
+			filename: "artifact.zip",
+			content:  "data",
+			setupMock: func(repo *mockProductRepo) {
+				repo.On("FetchProduct", "myproduct").Return(nil, errors.New("db error"))
+			},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "db error",
+		},
+		{
+			name:     "ProductNotFound",
+			product:  "myproduct",
+			version:  "1.0.0",
+			filename: "artifact.zip",
+			content:  "data",
+			setupMock: func(repo *mockProductRepo) {
+				repo.On("FetchProduct", "myproduct").Return(nil, nil)
+			},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "Product not found",
+		},
+		{
+			name:     "PermissionDenied_NotAdmin",
+			product:  "myproduct",
+			version:  "1.0.0",
+			filename: "artifact.zip",
+			content:  "data",
+			admin:    boolPtr(false),
+			token:    "mytoken",
+			setupMock: func(repo *mockProductRepo) {
+				repo.On("FetchProduct", "myproduct").Return(
+					productWithToken("mytoken", types.TokenPermissions{Upload: true}), nil,
+				)
+			},
+			wantStatus: http.StatusForbidden,
+			wantBody:   "permission denied",
+		},
+		{
+			name:     "PermissionDenied_NoUploadPermission",
+			product:  "myproduct",
+			version:  "1.0.0",
+			filename: "artifact.zip",
+			content:  "data",
+			admin:    boolPtr(true),
+			token:    "mytoken",
+			setupMock: func(repo *mockProductRepo) {
+				repo.On("FetchProduct", "myproduct").Return(
+					productWithToken("mytoken", types.TokenPermissions{Upload: false}), nil,
+				)
+			},
+			wantStatus: http.StatusForbidden,
+			wantBody:   "permission denied",
+		},
+		{
+			name:     "VersionAlreadyExists",
+			product:  "myproduct",
+			version:  "1.0.0",
+			filename: "artifact.zip",
+			content:  "data",
+			admin:    boolPtr(true),
+			token:    "mytoken",
+			setupMock: func(repo *mockProductRepo) {
+				p := productWithToken("mytoken", types.TokenPermissions{Upload: true})
+				p.Versions["1.0.0"] = types.Version{Path: "/some/path", Checksum: "abc"}
+				repo.On("FetchProduct", "myproduct").Return(p, nil)
+			},
+			wantStatus: http.StatusForbidden,
+			wantBody:   "already uploaded",
+		},
+		{
+			name:         "AddVersionError",
+			product:      "myproduct",
+			version:      "1.0.0",
+			filename:     "artifact.zip",
+			content:      "data",
+			admin:        boolPtr(true),
+			token:        "mytoken",
+			needsTempDir: true,
+			setupMock: func(repo *mockProductRepo) {
+				repo.On("FetchProduct", "myproduct").Return(
+					productWithToken("mytoken", types.TokenPermissions{Upload: true}), nil,
+				)
+				repo.On("AddVersion", "myproduct", "1.0.0", "mytoken", true, mock.Anything).
+					Return(errors.New("db error"))
+			},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "db error",
+		},
+		{
+			name:         "Success",
+			product:      "myproduct",
+			version:      "1.0.0",
+			filename:     "artifact.zip",
+			content:      "data",
+			admin:        boolPtr(true),
+			token:        "mytoken",
+			needsTempDir: true,
+			setupMock: func(repo *mockProductRepo) {
+				repo.On("FetchProduct", "myproduct").Return(
+					productWithToken("mytoken", types.TokenPermissions{Upload: true}), nil,
+				)
+				repo.On("AddVersion", "myproduct", "1.0.0", "mytoken", true, mock.Anything).Return(nil)
+			},
+			wantStatus: http.StatusCreated,
+		},
+	}
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.needsTempDir {
+				dir := t.TempDir()
+				orig, err := os.Getwd()
+				require.NoError(t, err)
+				require.NoError(t, os.Chdir(dir))
+				defer os.Chdir(orig)
+			}
 
-func TestHandleUpload_FetchProductError(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = newUploadRequest(t, "myproduct", "1.0.0", "artifact.zip", "data")
+			gin.SetMode(gin.TestMode)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = newUploadRequest(t, tt.product, tt.version, tt.filename, tt.content)
+			if tt.admin != nil {
+				c.Set("admin", *tt.admin)
+			}
+			if tt.token != "" {
+				c.Set("token", tt.token)
+			}
 
-	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(nil, errors.New("db error"))
+			repo := &mockProductRepo{}
+			if tt.setupMock != nil {
+				tt.setupMock(repo)
+			}
 
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleUpload(c)
+			handler := &ProductHandler{Repo: repo}
+			handler.HandleUpload(c)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(t, w.Body.String(), "db error")
-	repo.AssertExpectations(t)
-}
-
-func TestHandleUpload_ProductNotFound(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = newUploadRequest(t, "myproduct", "1.0.0", "artifact.zip", "data")
-
-	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(nil, nil)
-
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleUpload(c)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(t, w.Body.String(), "Product not found")
-	repo.AssertExpectations(t)
-}
-
-func TestHandleUpload_PermissionDenied_NotAdmin(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = newUploadRequest(t, "myproduct", "1.0.0", "artifact.zip", "data")
-	c.Set("admin", false)
-	c.Set("token", "mytoken")
-
-	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(
-		productWithToken("mytoken", types.TokenPermissions{Upload: true}), nil,
-	)
-
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleUpload(c)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-	assert.Contains(t, w.Body.String(), "permission denied")
-	repo.AssertExpectations(t)
-}
-
-func TestHandleUpload_PermissionDenied_NoUploadPermission(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = newUploadRequest(t, "myproduct", "1.0.0", "artifact.zip", "data")
-	c.Set("admin", true)
-	c.Set("token", "mytoken")
-
-	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(
-		productWithToken("mytoken", types.TokenPermissions{Upload: false}), nil,
-	)
-
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleUpload(c)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-	assert.Contains(t, w.Body.String(), "permission denied")
-	repo.AssertExpectations(t)
-}
-
-func TestHandleUpload_VersionAlreadyExists(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = newUploadRequest(t, "myproduct", "1.0.0", "artifact.zip", "data")
-	c.Set("admin", true)
-	c.Set("token", "mytoken")
-
-	product := productWithToken("mytoken", types.TokenPermissions{Upload: true})
-	product.Versions["1.0.0"] = types.Version{Path: "/some/path", Checksum: "abc"}
-
-	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(product, nil)
-
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleUpload(c)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-	assert.Contains(t, w.Body.String(), "already uploaded")
-	repo.AssertExpectations(t)
-}
-
-func TestHandleUpload_AddVersionError(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	dir := t.TempDir()
-	orig, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(dir))
-	defer os.Chdir(orig)
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = newUploadRequest(t, "myproduct", "1.0.0", "artifact.zip", "data")
-	c.Set("admin", true)
-	c.Set("token", "mytoken")
-
-	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(
-		productWithToken("mytoken", types.TokenPermissions{Upload: true}), nil,
-	)
-	repo.On("AddVersion", "myproduct", "1.0.0", "mytoken", true, mock.Anything).
-		Return(errors.New("db error"))
-
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleUpload(c)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(t, w.Body.String(), "db error")
-	repo.AssertExpectations(t)
-}
-
-func TestHandleUpload_Success(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	dir := t.TempDir()
-	orig, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(dir))
-	defer os.Chdir(orig)
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = newUploadRequest(t, "myproduct", "1.0.0", "artifact.zip", "data")
-	c.Set("admin", true)
-	c.Set("token", "mytoken")
-
-	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(
-		productWithToken("mytoken", types.TokenPermissions{Upload: true}), nil,
-	)
-	repo.On("AddVersion", "myproduct", "1.0.0", "mytoken", true, mock.Anything).Return(nil)
-
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleUpload(c)
-
-	assert.Equal(t, http.StatusCreated, c.Writer.Status())
-	repo.AssertExpectations(t)
+			assert.Equal(t, tt.wantStatus, c.Writer.Status())
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+			repo.AssertExpectations(t)
+		})
+	}
 }
