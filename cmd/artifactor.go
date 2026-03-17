@@ -81,6 +81,7 @@ func main() {
 
 	logging.Log.Info("Starting rest api")
 	router := gin.Default()
+	router.MaxMultipartMemory = int64(cfg.FileUploadLimit) << 20
 
 	api := router.Group("/api")
 
@@ -136,6 +137,7 @@ func setupProductEndpoints(authRepo repository.IAuthRepo, mongoClient *mongo.Cli
 		productApi.DELETE("/modify/:action", productHandler.HandleModify)
 		productApi.PUT("/modify/:action", productHandler.HandleModify)
 		productApi.POST("/upload", productHandler.HandleUpload)
+		productApi.GET("/download/:product/:version", productHandler.HandleDownload)
 	}
 }
 

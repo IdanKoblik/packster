@@ -19,6 +19,22 @@ func (h *ProductHandler) HandleUpload(c *gin.Context) {
 		return
 	}
 
+	if err := utils.ValidateName(request.Product); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := utils.ValidateName(request.Version); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	safeFilename, err := utils.SafeFilename(request.File.Filename)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	product, err := h.Repo.FetchProduct(request.Product)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -45,7 +61,7 @@ func (h *ProductHandler) HandleUpload(c *gin.Context) {
 		return
 	}
 
-	location := fmt.Sprintf("./prodcuts/%s/%s/%s", request.Product, request.Version, request.File.Filename)
+	location := fmt.Sprintf("./prodcuts/%s/%s/%s", request.Product, request.Version, safeFilename)
 	err = c.SaveUploadedFile(request.File, location)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{

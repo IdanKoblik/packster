@@ -72,6 +72,7 @@ func handleDeleteToken(c *gin.Context, h *ProductHandler) {
 func handleAddToken(c *gin.Context, h *ProductHandler) {
 	if c.Request.Method != http.MethodPut {
 		c.String(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
+		return
 	}
 
 	var request types.AddProductTokenRequest
@@ -111,7 +112,7 @@ func handleDeleteVersion(c *gin.Context, h *ProductHandler) {
 		request.Product,
 		request.Version,
 		c.GetString("token"),
-		c.GetBool("token"),
+		c.GetBool("admin"),
 	)
 
 	if err != nil {

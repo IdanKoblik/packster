@@ -1,6 +1,7 @@
 package product
 
 import (
+	"artifactor/internal/utils"
 	"artifactor/pkg/types"
 	"net/http"
 
@@ -26,20 +27,24 @@ func (h *ProductHandler) HandleCreate(c *gin.Context) {
 		return
 	}
 
-	if request.Tokens == nil {
-		request.Tokens = make(map[string]types.TokenPermissions)
+	if err := utils.ValidateName(request.Name); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
-	request.Tokens[c.GetString("token")] = types.TokenPermissions{
-		Download:   true,
-		Upload:     true,
-		Delete:     true,
-		Maintainer: true,
+	// Ignore any caller-supplied tokens; only grant the creating token full access.
+	tokens := map[string]types.TokenPermissions{
+		c.GetString("token"): {
+			Download:   true,
+			Upload:     true,
+			Delete:     true,
+			Maintainer: true,
+		},
 	}
 
 	err = h.Repo.CreateProduct(&types.Product{
 		Name:     request.Name,
-		Tokens:   request.Tokens,
+		Tokens:   tokens,
 		Versions: map[string]types.Version{},
 	})
 

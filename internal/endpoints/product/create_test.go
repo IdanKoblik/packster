@@ -41,6 +41,20 @@ func TestHandleCreate_MissingName(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "name is required")
 }
 
+func TestHandleCreate_InvalidName(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	body, _ := json.Marshal(types.CreateProductRequest{Name: "../../etc"})
+	c.Request = httptest.NewRequest(http.MethodPost, "/products", bytes.NewReader(body))
+
+	handler := &ProductHandler{Repo: &mockProductRepo{}}
+	handler.HandleCreate(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid name")
+}
+
 func TestHandleCreate_RepoError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
