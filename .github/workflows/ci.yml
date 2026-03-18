@@ -27,6 +27,9 @@ jobs:
   coverage-release:
     needs: test
     if: github.event_name == 'workflow_dispatch'
+    permissions:
+      packages: write
+      contents: write
     uses: ./.github/workflows/release.yml
     with:
       version: ${{ github.event.inputs.version || 'v1.0.0' }}
