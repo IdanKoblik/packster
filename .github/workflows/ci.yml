@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches:
+      - 17-docs
       - main
   workflow_dispatch:
     inputs:
