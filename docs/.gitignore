@@ -2,9 +2,8 @@
 # To test that, run `git ls-files -i --exclude-standard`.
 # To check why a specific file is ignored, run `git check-ignore -v <filepath>`.
 
-# === Rule for dotfiles ===
-# Ignore all dotfiles.
-.*
+.vitepress/cache/
+
 # Exclude specific dotfiles that we want to track.
 !deps/**/.*
 !test/fixtures/**/.*

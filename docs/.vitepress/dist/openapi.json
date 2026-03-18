@@ -1,0 +1,508 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Artifactor API",
+    "description": "Package version management service — store, retrieve, and manage versioned build artifacts.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080/api",
+      "description": "Local development server"
+    }
+  ],
+  "security": [
+    { "ApiKeyAuth": [] }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Api-Token",
+        "description": "API token obtained via the /register endpoint. Pass as the `X-Api-Token` header on every request."
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "example": "something went wrong" }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "properties": {
+          "admin": {
+            "type": "boolean",
+            "description": "Whether the new token should have admin privileges.",
+            "example": false
+          }
+        }
+      },
+      "ApiToken": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string", "example": "a3f9b2c1..." },
+          "admin": { "type": "boolean", "example": false }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "mongo": { "type": "string", "example": "Mongo is fine" },
+          "redis": { "type": "string", "example": "Redis is fine" }
+        }
+      },
+      "TokenPermissions": {
+        "type": "object",
+        "properties": {
+          "maintainer": { "type": "boolean", "example": false },
+          "download":   { "type": "boolean", "example": true  },
+          "upload":     { "type": "boolean", "example": false },
+          "delete":     { "type": "boolean", "example": false }
+        }
+      },
+      "Version": {
+        "type": "object",
+        "properties": {
+          "path":     { "type": "string", "example": "./prodcuts/my-lib/v1.0.0/my-lib.tar.gz" },
+          "checksum": { "type": "string", "example": "sha256:abc123..." }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "example": "my-lib" },
+          "tokens": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/components/schemas/TokenPermissions" },
+            "description": "Map of hashed token → permissions"
+          },
+          "versions": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/components/schemas/Version" },
+            "description": "Map of version identifier → version metadata"
+          }
+        }
+      },
+      "CreateProductRequest": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "example": "my-lib" }
+        }
+      },
+      "DeleteVersionRequest": {
+        "type": "object",
+        "required": ["product", "version"],
+        "properties": {
+          "product": { "type": "string", "example": "my-lib" },
+          "version": { "type": "string", "example": "v1.0.0" }
+        }
+      },
+      "DeleteProductTokenRequest": {
+        "type": "object",
+        "required": ["product", "token"],
+        "properties": {
+          "product": { "type": "string", "example": "my-lib" },
+          "token":   { "type": "string", "example": "a3f9b2c1..." }
+        }
+      },
+      "AddProductTokenRequest": {
+        "type": "object",
+        "required": ["product", "token", "permissions"],
+        "properties": {
+          "product":     { "type": "string", "example": "my-lib" },
+          "token":       { "type": "string", "example": "a3f9b2c1..." },
+          "permissions": { "$ref": "#/components/schemas/TokenPermissions" }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Admin privileges required.",
+        "content": { "text/plain": { "schema": { "type": "string" } } }
+      },
+      "Forbidden": {
+        "description": "Permission denied.",
+        "content": { "text/plain": { "schema": { "type": "string" } } }
+      },
+      "InternalError": {
+        "description": "Internal server error.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      }
+    }
+  },
+  "tags": [
+    { "name": "system",   "description": "Service health" },
+    { "name": "auth",     "description": "API token management (admin only)" },
+    { "name": "products", "description": "Product lifecycle" },
+    { "name": "versions", "description": "Version artifact upload, download, and deletion" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "tags": ["system"],
+        "summary": "Health check",
+        "description": "Returns the health status of the MongoDB and Redis connections.",
+        "responses": {
+          "200": {
+            "description": "All services healthy.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } } }
+          },
+          "500": {
+            "description": "One or more services unhealthy.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } } }
+          }
+        }
+      }
+    },
+    "/register": {
+      "put": {
+        "operationId": "registerToken",
+        "tags": ["auth"],
+        "summary": "Register a new API token",
+        "description": "Creates and returns a new API token. Requires admin privileges.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Token created. The raw token string is returned as plain text.",
+            "content": { "text/plain": { "schema": { "type": "string", "example": "a3f9b2c1d4e5f6a7b8c9..." } } }
+          },
+          "400": {
+            "description": "Missing or invalid request body.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/fetch/{token}": {
+      "get": {
+        "operationId": "fetchToken",
+        "tags": ["auth"],
+        "summary": "Fetch an API token",
+        "description": "Returns metadata for the specified token. Requires admin privileges.",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The raw token string to look up."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token metadata.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiToken" } } }
+          },
+          "400": {
+            "description": "Token not found.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/prune/{token}": {
+      "delete": {
+        "operationId": "pruneToken",
+        "tags": ["auth"],
+        "summary": "Delete an API token",
+        "description": "Permanently removes the specified API token. Requires admin privileges.",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The raw token string to delete."
+          }
+        ],
+        "responses": {
+          "204": { "description": "Token deleted." },
+          "400": {
+            "description": "Missing token parameter.",
+            "content": { "text/plain": { "schema": { "type": "string" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/product/create": {
+      "put": {
+        "operationId": "createProduct",
+        "tags": ["products"],
+        "summary": "Create a product",
+        "description": "Creates a new product. The calling token is automatically granted full maintainer access (download, upload, delete, maintainer).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateProductRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Product created." },
+          "400": {
+            "description": "Invalid name or missing request body.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/product/fetch/{product}": {
+      "get": {
+        "operationId": "fetchProduct",
+        "tags": ["products"],
+        "summary": "Fetch a product",
+        "description": "Returns full product metadata including the token map and all versions. Requires the calling token to have access to the product, or admin privileges.",
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Product name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product metadata.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Product" } } }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": {
+            "description": "Product not found.",
+            "content": { "text/plain": { "schema": { "type": "string" } } }
+          },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/product/delete/{product}": {
+      "delete": {
+        "operationId": "deleteProduct",
+        "tags": ["products"],
+        "summary": "Delete a product",
+        "description": "Permanently removes a product and all its metadata. Requires maintainer or admin access.",
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Product name."
+          }
+        ],
+        "responses": {
+          "204": { "description": "Product deleted." },
+          "400": {
+            "description": "Missing product name.",
+            "content": { "text/plain": { "schema": { "type": "string" } } }
+          },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/product/modify/{action}": {
+      "delete": {
+        "operationId": "modifyProductDelete",
+        "tags": ["products"],
+        "summary": "Modify a product (deleteVersion / deleteToken)",
+        "description": "Dispatches to `deleteVersion` or `deleteToken` based on the `action` path parameter.\n\n**deleteVersion**: Remove a version from a product.\n\nRequest body: `DeleteVersionRequest`\n\n**deleteToken**: Revoke a token's access to a product. Requires maintainer or admin access.\n\nRequest body: `DeleteProductTokenRequest`",
+        "parameters": [
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["deleteVersion", "deleteToken"]
+            },
+            "description": "Action to perform."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  { "$ref": "#/components/schemas/DeleteVersionRequest" },
+                  { "$ref": "#/components/schemas/DeleteProductTokenRequest" }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Version deleted (deleteVersion)." },
+          "204": { "description": "Token deleted (deleteToken)." },
+          "400": {
+            "description": "Invalid action or request body.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "put": {
+        "operationId": "modifyProductPut",
+        "tags": ["products"],
+        "summary": "Modify a product (addToken)",
+        "description": "Grants a token access to a product with the specified permissions. Requires maintainer or admin access.",
+        "parameters": [
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["addToken"]
+            },
+            "description": "Must be `addToken`."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AddProductTokenRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Token added." },
+          "400": {
+            "description": "Invalid request body.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "405": {
+            "description": "Method not allowed (must use PUT for addToken).",
+            "content": { "text/plain": { "schema": { "type": "string" } } }
+          },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/product/upload": {
+      "post": {
+        "operationId": "uploadVersion",
+        "tags": ["versions"],
+        "summary": "Upload a version artifact",
+        "description": "Uploads a file as a new version of a product. Requires Upload permission. Duplicate version names are rejected.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["product", "version", "file"],
+                "properties": {
+                  "product": { "type": "string", "description": "Product name.", "example": "my-lib" },
+                  "version": { "type": "string", "description": "Version identifier.", "example": "v1.0.0" },
+                  "file":    { "type": "string", "format": "binary", "description": "Artifact file." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Version uploaded." },
+          "400": {
+            "description": "Invalid request, product not found, or duplicate version.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/product/download/{product}/{version}": {
+      "get": {
+        "operationId": "downloadVersion",
+        "tags": ["versions"],
+        "summary": "Download a version artifact",
+        "description": "Streams the artifact file for the specified product version. Requires Download permission.",
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Product name."
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Version identifier."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Artifact file binary.",
+            "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } }
+          },
+          "400": {
+            "description": "Product or version not found.",
+            "content": { "text/plain": { "schema": { "type": "string" } } }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": {
+            "description": "Internal server error.",
+            "content": { "text/plain": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/product/delete/{product}/{version}": {
+      "delete": {
+        "operationId": "deleteVersion",
+        "tags": ["versions"],
+        "summary": "Delete a version artifact",
+        "description": "Removes the artifact file and version metadata. Requires Delete permission.",
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Product name."
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Version identifier."
+          }
+        ],
+        "responses": {
+          "204": { "description": "Version deleted." },
+          "400": {
+            "description": "Product or version not found.",
+            "content": { "text/plain": { "schema": { "type": "string" } } }
+          },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    }
+  }
+}
