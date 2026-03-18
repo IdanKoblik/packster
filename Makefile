@@ -31,13 +31,11 @@ cover:
 	@echo ""
 	@echo "HTML report written to $(COVER_HTML)"
 
-# Run unit + integration tests with merged coverage.
-# Uses go tool covdata to properly merge two separate runs so both
-# test types contribute without double-counting overlapping lines.
+# Run unit + integration tests with coverage.
 # cmd/ is excluded from coverpkg because main packages are not unit-testable.
 .PHONY: cover-integration
 cover-integration:
-	$(GO) test -short -race -coverprofile=$(COVER_OUT) -coverpkg=./internal/... ./internal/...
+	$(GO) test -race -coverprofile=$(COVER_OUT) -coverpkg=./internal/... ./internal/...
 	$(GO) tool cover -func=$(COVER_OUT)
 	$(GO) tool cover -html=$(COVER_OUT) -o $(COVER_HTML)
 	@echo ""
