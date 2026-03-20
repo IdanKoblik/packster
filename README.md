@@ -35,7 +35,6 @@ Create a YAML config file (see `fixtures/example.yml` for reference):
 
 ```yaml
 file_upload_limit: 20              # Max upload size in MB
-signing_key: "your-signing-key"
 
 mongo:
   connection_string: "mongodb://localhost:27017/"
