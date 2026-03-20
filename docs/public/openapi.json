@@ -136,6 +136,25 @@
     { "name": "versions", "description": "Version artifact upload, download, and deletion" }
   ],
   "paths": {
+    "/validate": {
+      "get": {
+        "operationId": "validateToken",
+        "tags": ["auth"],
+        "summary": "Validate an API token",
+        "description": "Validates whether the provided API token exists and returns whether it has admin privileges.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Token validation result.",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "valid": { "type": "boolean" }, "admin": { "type": "boolean" } } } } }
+          },
+          "401": {
+            "description": "Invalid or missing token.",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "valid": { "type": "boolean" }, "admin": { "type": "boolean" } } } } }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "operationId": "getHealth",

@@ -16,6 +16,7 @@ type IProductRepo interface {
 	CreateProduct(product *types.Product) error
 	DeleteProduct(name, token string, admin bool) error
 	FetchProduct(name string) (*types.Product, error)
+	FetchAllProducts() ([]*types.Product, error)
 	DeleteToken(productName, sourceToken, targetToken string, admin bool) error
 	AddToken(productName, sourceToken, targetToken string, permissions types.TokenPermissions, admin bool) error
 	DeleteVersion(productName, version, token string, admin bool) error
@@ -104,6 +105,25 @@ func (r *ProductRepository) FetchProduct(name string) (*types.Product, error) {
 	}
 
 	return &product, nil
+}
+
+func (r *ProductRepository) FetchAllProducts() ([]*types.Product, error) {
+	collection := r.MongoDatabase.Collection(r.Cfg.Mongo.ProductCollection)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cursor, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+
+	var products []*types.Product
+	if err := cursor.All(ctx, &products); err != nil {
+		return nil, err
+	}
+
+	return products, nil
 }
 
 func (r *ProductRepository) DeleteToken(productName, sourceToken, targetToken string, admin bool) error {

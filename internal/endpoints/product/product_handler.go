@@ -9,6 +9,7 @@ type ProductRepo interface {
 	CreateProduct(product *types.Product) error
 	DeleteProduct(name, token string, admin bool) error
 	FetchProduct(name string) (*types.Product, error)
+	FetchAllProducts() ([]*types.Product, error)
 	DeleteToken(productName, sourceToken, targetToken string, admin bool) error
 	AddToken(productName, sourceToken, targetToken string, permissions types.TokenPermissions, admin bool) error
 	AddVersion(productName, version, token string, admin bool, v types.Version) error

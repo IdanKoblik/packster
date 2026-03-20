@@ -28,6 +28,14 @@ func (m *mockProductRepo) FetchProduct(name string) (*types.Product, error) {
 	return args.Get(0).(*types.Product), args.Error(1)
 }
 
+func (m *mockProductRepo) FetchAllProducts() ([]*types.Product, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*types.Product), args.Error(1)
+}
+
 func (m *mockProductRepo) DeleteToken(productName, sourceToken, targetToken string, admin bool) error {
 	args := m.Called(productName, sourceToken, targetToken, admin)
 	return args.Error(0)

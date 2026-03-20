@@ -120,6 +120,7 @@ func setupAuthEndpoints(authRepo *repository.AuthRepository, redisClient *redis.
 		}
 	}
 
+	api.GET("/validate", authHandler.HandleValidate)
 	api.Use(middleware.AuthMiddleware(authRepo))
 	{
 		api.PUT("/register", authHandler.HandleRegister)
@@ -140,6 +141,7 @@ func setupProductEndpoints(authRepo repository.IAuthRepo, mongoClient *mongo.Cli
 	{
 		productApi.PUT("/create", productHandler.HandleCreate)
 		productApi.DELETE("/delete/:product", productHandler.HandleDelete)
+		productApi.GET("/fetch", productHandler.HandleFetchAll)
 		productApi.GET("/fetch/:product", productHandler.HandleFetch)
 		productApi.DELETE("/modify/:action", productHandler.HandleModify)
 		productApi.PUT("/modify/:action", productHandler.HandleModify)
