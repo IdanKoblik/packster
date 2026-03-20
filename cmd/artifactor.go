@@ -139,7 +139,7 @@ func setupAuthEndpoints(authRepo *repository.AuthRepository, redisClient *redis.
 
 func setupProductEndpoints(authRepo repository.IAuthRepo, mongoClient *mongo.Client, cfg *config.Config, api *gin.RouterGroup) {
 	productRepo := repository.NewProductRepository(mongoClient, cfg)
-	productHandler := product.NewProductHandler(productRepo)
+	productHandler := product.NewProductHandler(productRepo, cfg.FileUploadLimit)
 
 	productApi := api.Group("/product")
 	productApi.Use(middleware.AuthMiddleware(authRepo))

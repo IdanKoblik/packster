@@ -17,11 +17,13 @@ type ProductRepo interface {
 }
 
 type ProductHandler struct {
-	Repo ProductRepo
+	Repo          ProductRepo
+	FileSizeLimit int
 }
 
-func NewProductHandler(repo *repository.ProductRepository) *ProductHandler {
+func NewProductHandler(repo *repository.ProductRepository, fileSizeLimit int) *ProductHandler {
 	return &ProductHandler{
-		Repo: repo,
+		Repo:          repo,
+		FileSizeLimit: fileSizeLimit,
 	}
 }

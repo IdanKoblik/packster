@@ -9,6 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const mbInBytes = 1 << 20
+
 // HandleUpload godoc
 // @Summary      Upload a version artifact
 // @Description  Uploads a file as a new version of a product. Requires Upload permission. Duplicate version names are rejected.
@@ -30,6 +32,13 @@ func (h *ProductHandler) HandleUpload(c *gin.Context) {
 			"error": err.Error(),
 		})
 
+		return
+	}
+
+	if h.FileSizeLimit > 0 && request.File.Size > int64(h.FileSizeLimit)*mbInBytes {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("file size exceeds the limit of %d MB", h.FileSizeLimit),
+		})
 		return
 	}
 

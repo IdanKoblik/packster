@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -57,14 +58,15 @@ func TestHandleUpload(t *testing.T) {
 		name         string
 		product      string
 		version      string
-		filename     string
-		content      string
-		admin        *bool
-		token        string
-		setupMock    func(*mockProductRepo)
-		wantStatus   int
-		wantBody     string
-		needsTempDir bool
+		filename      string
+		content       string
+		admin         *bool
+		token         string
+		setupMock     func(*mockProductRepo)
+		wantStatus    int
+		wantBody      string
+		needsTempDir  bool
+		fileSizeLimit int
 	}{
 		{
 			name:       "InvalidForm",
@@ -187,6 +189,18 @@ func TestHandleUpload(t *testing.T) {
 			wantBody:   "db error",
 		},
 		{
+			name:          "FileSizeLimitExceeded",
+			product:       "myproduct",
+			version:       "1.0.0",
+			filename:      "artifact.zip",
+			content:       strings.Repeat("a", 1024*1024+1),
+			admin:         boolPtr(true),
+			token:         "mytoken",
+			fileSizeLimit: 1,
+			wantStatus:    http.StatusBadRequest,
+			wantBody:      "file size exceeds the limit of 1 MB",
+		},
+		{
 			name:         "Success",
 			product:      "myproduct",
 			version:      "1.0.0",
@@ -231,7 +245,7 @@ func TestHandleUpload(t *testing.T) {
 				tt.setupMock(repo)
 			}
 
-			handler := &ProductHandler{Repo: repo}
+			handler := &ProductHandler{Repo: repo, FileSizeLimit: tt.fileSizeLimit}
 			handler.HandleUpload(c)
 
 			assert.Equal(t, tt.wantStatus, c.Writer.Status())

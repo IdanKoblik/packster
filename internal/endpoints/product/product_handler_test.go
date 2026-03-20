@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewProductHandler(t *testing.T) {
-	handler := NewProductHandler(nil)
+	handler := NewProductHandler(nil, 0)
 
 	assert.NotNil(t, handler)
 	assert.Nil(t, handler.Repo)
