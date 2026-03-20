@@ -25,6 +25,9 @@ jobs:
           echo "Waiting for Redis..."
           until docker exec redis redis-cli ping; do sleep 1; done
 
+      - name: Create UI stub for tests
+        run: echo '<!DOCTYPE html><html><body>stub</body></html>' > internal/ui/static/index.html
+
       - name: Run tests with coverage
         run: make cover-integration
 
