@@ -148,6 +148,7 @@ func setupProductEndpoints(authRepo repository.IAuthRepo, mongoClient *mongo.Cli
 		productApi.DELETE("/delete/:product", productHandler.HandleDelete)
 		productApi.GET("/fetch/:product", productHandler.HandleFetch)
 		productApi.GET("/list", productHandler.HandleListProducts)
+		productApi.GET("/access", productHandler.HandleAccess)
 		productApi.DELETE("/modify/:action", productHandler.HandleModify)
 		productApi.PUT("/modify/:action", productHandler.HandleModify)
 		productApi.POST("/upload", productHandler.HandleUpload)

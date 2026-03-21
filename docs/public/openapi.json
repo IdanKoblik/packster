@@ -235,6 +235,29 @@
         }
       }
     },
+    "/product/access": {
+      "get": {
+        "operationId": "accessProducts",
+        "tags": ["products"],
+        "summary": "List accessible products",
+        "description": "Returns the names of all products the authenticated token has access to.",
+        "responses": {
+          "200": {
+            "description": "Product names accessible by the token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "example": ["my-lib", "other-lib"]
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
     "/product/create": {
       "put": {
         "operationId": "createProduct",
