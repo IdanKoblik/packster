@@ -12,17 +12,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestHandleAccess_ListProductsError(t *testing.T) {
+func newAccessContext(token string) (*httptest.ResponseRecorder, *gin.Context) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/product/access", nil)
+	if token != "" {
+		c.Set("token", token)
+	}
+	return w, c
+}
+
+func runAccess(c *gin.Context, repo *mockProductRepo) {
+	(&ProductHandler{Repo: repo}).HandleAccess(c)
+}
+
+func TestHandleAccess_ListProductsError(t *testing.T) {
+	w, c := newAccessContext("")
 
 	repo := &mockProductRepo{}
 	repo.On("ListProducts").Return(nil, errors.New("db error"))
 
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleAccess(c)
+	runAccess(c, repo)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Contains(t, w.Body.String(), "db error")
@@ -30,17 +41,12 @@ func TestHandleAccess_ListProductsError(t *testing.T) {
 }
 
 func TestHandleAccess_NoProducts(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/product/access", nil)
-	c.Set("token", "mytoken")
+	w, c := newAccessContext("mytoken")
 
 	repo := &mockProductRepo{}
 	repo.On("ListProducts").Return([]string{}, nil)
 
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleAccess(c)
+	runAccess(c, repo)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "null")
@@ -48,11 +54,7 @@ func TestHandleAccess_NoProducts(t *testing.T) {
 }
 
 func TestHandleAccess_TokenHasAccess(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/product/access", nil)
-	c.Set("token", "mytoken")
+	w, c := newAccessContext("mytoken")
 
 	product := productWithToken("mytoken", types.TokenPermissions{Download: true})
 	product.Name = "productA"
@@ -61,8 +63,7 @@ func TestHandleAccess_TokenHasAccess(t *testing.T) {
 	repo.On("ListProducts").Return([]string{"productA"}, nil)
 	repo.On("FetchProduct", "productA").Return(product, nil)
 
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleAccess(c)
+	runAccess(c, repo)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "productA")
@@ -70,11 +71,7 @@ func TestHandleAccess_TokenHasAccess(t *testing.T) {
 }
 
 func TestHandleAccess_TokenNoAccess(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/product/access", nil)
-	c.Set("token", "othertoken")
+	w, c := newAccessContext("othertoken")
 
 	product := productWithToken("mytoken", types.TokenPermissions{Download: true})
 	product.Name = "productA"
@@ -83,8 +80,7 @@ func TestHandleAccess_TokenNoAccess(t *testing.T) {
 	repo.On("ListProducts").Return([]string{"productA"}, nil)
 	repo.On("FetchProduct", "productA").Return(product, nil)
 
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleAccess(c)
+	runAccess(c, repo)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.NotContains(t, w.Body.String(), "productA")
@@ -92,11 +88,7 @@ func TestHandleAccess_TokenNoAccess(t *testing.T) {
 }
 
 func TestHandleAccess_PartialAccess(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/product/access", nil)
-	c.Set("token", "mytoken")
+	w, c := newAccessContext("mytoken")
 
 	productA := productWithToken("mytoken", types.TokenPermissions{Download: true})
 	productA.Name = "productA"
@@ -112,8 +104,7 @@ func TestHandleAccess_PartialAccess(t *testing.T) {
 	repo.On("FetchProduct", "productA").Return(productA, nil)
 	repo.On("FetchProduct", "productB").Return(productB, nil)
 
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleAccess(c)
+	runAccess(c, repo)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "productA")
@@ -122,11 +113,7 @@ func TestHandleAccess_PartialAccess(t *testing.T) {
 }
 
 func TestHandleAccess_FetchProductError_Skipped(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/product/access", nil)
-	c.Set("token", "mytoken")
+	w, c := newAccessContext("mytoken")
 
 	productB := productWithToken("mytoken", types.TokenPermissions{Download: true})
 	productB.Name = "productB"
@@ -136,8 +123,7 @@ func TestHandleAccess_FetchProductError_Skipped(t *testing.T) {
 	repo.On("FetchProduct", "productA").Return(nil, errors.New("db error"))
 	repo.On("FetchProduct", "productB").Return(productB, nil)
 
-	handler := &ProductHandler{Repo: repo}
-	handler.HandleAccess(c)
+	runAccess(c, repo)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.NotContains(t, w.Body.String(), "productA")
