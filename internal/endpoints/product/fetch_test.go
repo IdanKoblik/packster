@@ -89,6 +89,7 @@ func TestHandleFetch_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "myproduct")
+	assert.NotContains(t, w.Body.String(), "tokens")
 	repo.AssertExpectations(t)
 }
 

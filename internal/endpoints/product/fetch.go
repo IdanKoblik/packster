@@ -47,5 +47,8 @@ func (h *ProductHandler) HandleFetch(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, product)
+	c.JSON(http.StatusOK, gin.H{
+		"name":     product.Name,
+		"versions": product.Versions,
+	})
 }
