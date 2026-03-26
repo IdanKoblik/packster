@@ -1,6 +1,7 @@
 package product
 
 import (
+	"artifactor/internal/metrics"
 	"artifactor/internal/utils"
 	"net/http"
 	"path/filepath"
@@ -66,5 +67,6 @@ func (h *ProductHandler) HandleDownload(c *gin.Context) {
 		return
 	}
 
+	metrics.ArtifactDownloadsTotal.WithLabelValues(productName).Inc()
 	c.FileAttachment(v.Path, filepath.Base(v.Path))
 }

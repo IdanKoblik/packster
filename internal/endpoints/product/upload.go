@@ -1,6 +1,7 @@
 package product
 
 import (
+	"artifactor/internal/metrics"
 	"artifactor/internal/utils"
 	"artifactor/pkg/types"
 	"fmt"
@@ -117,12 +118,16 @@ func (h *ProductHandler) HandleUpload(c *gin.Context) {
 	)
 
 	if err != nil {
+		metrics.ArtifactUploadsTotal.WithLabelValues(request.Product, "error").Inc()
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 
 		return
 	}
+
+	metrics.ArtifactUploadsTotal.WithLabelValues(request.Product, "success").Inc()
+	metrics.ArtifactUploadBytesTotal.WithLabelValues(request.Product).Add(float64(request.File.Size))
 
 	c.Status(http.StatusCreated)
 }

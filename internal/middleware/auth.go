@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"artifactor/internal/metrics"
 	"artifactor/internal/repository"
 	"net/http"
 
@@ -13,6 +14,7 @@ func AuthMiddleware(repo repository.IAuthRepo) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader(API_HEADER)
 		if authHeader == "" {
+			metrics.AuthFailures.WithLabelValues("missing_header").Inc()
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Authorization header missing",
 			})
@@ -21,6 +23,7 @@ func AuthMiddleware(repo repository.IAuthRepo) gin.HandlerFunc {
 
 		token, err := repo.FetchToken(authHeader)
 		if err != nil {
+			metrics.AuthFailures.WithLabelValues("fetch_error").Inc()
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": err.Error(),
 			})
@@ -28,6 +31,7 @@ func AuthMiddleware(repo repository.IAuthRepo) gin.HandlerFunc {
 		}
 
 		if token == nil {
+			metrics.AuthFailures.WithLabelValues("invalid_token").Inc()
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Invalid api token",
 			})
@@ -36,6 +40,7 @@ func AuthMiddleware(repo repository.IAuthRepo) gin.HandlerFunc {
 
 		admin, err := repo.IsAdmin(authHeader)
 		if err != nil {
+			metrics.AuthFailures.WithLabelValues("admin_check_error").Inc()
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": err.Error(),
 			})
