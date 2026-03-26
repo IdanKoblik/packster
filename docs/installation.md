@@ -35,6 +35,9 @@ redis:
   addr: localhost:6379
   password: ""
   db: 0
+
+metrics:
+  addr: 0.0.0.0:9091  # Prometheus scrape endpoint (optional, defaults to 0.0.0.0:9091)
 ```
 
 | Field | Description |
@@ -47,6 +50,7 @@ redis:
 | `redis.addr` | Redis address (`host:port`) |
 | `redis.password` | Redis password (optional) |
 | `redis.db` | Redis database index (optional) |
+| `metrics.addr` | Address for the Prometheus `/metrics` endpoint (optional, defaults to `0.0.0.0:9091`) |
 
 ## Running
 
@@ -70,11 +74,22 @@ SERVER_ADDR=0.0.0.0:9090 CONFIG_PATH=./config.yml ./bin/artifactor
 
 **Starting dependencies with Docker Compose:**
 
-A `docker-compose.yml` is included to spin up MongoDB and Redis locally:
+A `docker-compose.yml` is included to spin up MongoDB, Redis, Prometheus, and Grafana locally:
 
 ```bash
 docker compose up -d
 ```
+
+This starts:
+
+| Service | Port | Notes |
+|---|---|---|
+| MongoDB | 27017 | Primary data store |
+| Redis | 6379 | Token cache |
+| Prometheus | 9090 | Scrapes `host.docker.internal:9091` every 15 s |
+| Grafana | 3000 | Pre-provisioned dashboard at `http://localhost:3000` (admin / admin) |
+
+Prometheus scrapes the `/metrics` endpoint exposed by the running artifactor binary on port `9091`. Make sure artifactor is running before expecting data in Grafana.
 
 ## Flags
 

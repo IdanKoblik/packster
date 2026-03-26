@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"math/rand/v2"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	internalconfig "artifactor/internal/config"
 	"artifactor/internal/endpoints"
@@ -13,6 +15,7 @@ import (
 	"artifactor/internal/endpoints/product"
 	"artifactor/internal/flags"
 	"artifactor/internal/logging"
+	"artifactor/internal/metrics"
 	"artifactor/internal/middleware"
 	internalmongo "artifactor/internal/mongo"
 	internalredis "artifactor/internal/redis"
@@ -21,6 +24,7 @@ import (
 	"artifactor/pkg/config"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -87,8 +91,11 @@ func main() {
 
 	authRepo := repository.NewAuthRepository(redisClient, mongoClient, &cfg)
 
+	startHealthProbes(mongoClient, redisClient)
+
 	logging.Log.Info("Starting rest api")
 	router := gin.Default()
+	router.Use(middleware.PrometheusMiddleware())
 	router.MaxMultipartMemory = int64(cfg.FileUploadLimit) << 20
 
 	api := router.Group("/api")
@@ -105,10 +112,57 @@ func main() {
 		addr = "0.0.0.0:8080"
 	}
 
+	startMetricsServer(&cfg)
+
 	if err := router.Run(addr); err != nil {
 		logging.Log.Error("Failed to start rest api\n", err)
 		os.Exit(1)
 	}
+}
+
+// startMetricsServer serves /metrics on a dedicated port (default :9091) so it
+// can be firewalled independently from the main API.
+func startMetricsServer(cfg *config.Config) {
+	metricsAddr := cfg.Metrics.Addr
+	if metricsAddr == "" {
+		metricsAddr = "0.0.0.0:9091"
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+
+	go func() {
+		logging.Log.Infof("Metrics server listening on %s", metricsAddr)
+		if err := http.ListenAndServe(metricsAddr, mux); err != nil {
+			logging.Log.Errorf("Metrics server error: %v", err)
+		}
+	}()
+}
+
+// startHealthProbes runs a background goroutine that updates the mongo_up and
+// redis_up gauges every 15 seconds so dashboards reflect current dependency health.
+func startHealthProbes(mongoClient *mongo.Client, redisClient *redis.Client) {
+	probe := func() {
+		if err := internalmongo.CheckHealth(mongoClient); err != nil {
+			metrics.MongoUp.Set(0)
+		} else {
+			metrics.MongoUp.Set(1)
+		}
+		if err := internalredis.CheckHealth(redisClient); err != nil {
+			metrics.RedisUp.Set(0)
+		} else {
+			metrics.RedisUp.Set(1)
+		}
+	}
+
+	probe()
+	go func() {
+		ticker := time.NewTicker(15 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			probe()
+		}
+	}()
 }
 
 func setupAuthEndpoints(authRepo *repository.AuthRepository, redisClient *redis.Client, mongoClient *mongo.Client, api *gin.RouterGroup) {

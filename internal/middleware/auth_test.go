@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"artifactor/internal/metrics"
 	"artifactor/pkg/types"
 	"errors"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"artifactor/internal/repository"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -177,3 +179,56 @@ func TestAuthMiddleware_IsAdminError(t *testing.T) {
 }
 
 var _ repository.IAuthRepo = (*MockAuthRepo)(nil)
+
+func TestAuthMiddleware_MissingHeader_IncrementsCounter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	before := testutil.ToFloat64(metrics.AuthFailures.WithLabelValues("missing_header"))
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/test", nil)
+
+	AuthMiddleware(new(MockAuthRepo))(c)
+
+	after := testutil.ToFloat64(metrics.AuthFailures.WithLabelValues("missing_header"))
+	assert.Equal(t, float64(1), after-before)
+}
+
+func TestAuthMiddleware_InvalidToken_IncrementsCounter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	before := testutil.ToFloat64(metrics.AuthFailures.WithLabelValues("invalid_token"))
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/test", nil)
+	c.Request.Header.Set(API_HEADER, "invalid-token")
+
+	mockRepo := new(MockAuthRepo)
+	mockRepo.On("FetchToken", "invalid-token").Return(nil, nil)
+
+	AuthMiddleware(mockRepo)(c)
+
+	after := testutil.ToFloat64(metrics.AuthFailures.WithLabelValues("invalid_token"))
+	assert.Equal(t, float64(1), after-before)
+}
+
+func TestAuthMiddleware_FetchTokenError_IncrementsCounter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	before := testutil.ToFloat64(metrics.AuthFailures.WithLabelValues("fetch_error"))
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/test", nil)
+	c.Request.Header.Set(API_HEADER, "bad-token")
+
+	mockRepo := new(MockAuthRepo)
+	mockRepo.On("FetchToken", "bad-token").Return(nil, errors.New("db error"))
+
+	AuthMiddleware(mockRepo)(c)
+
+	after := testutil.ToFloat64(metrics.AuthFailures.WithLabelValues("fetch_error"))
+	assert.Equal(t, float64(1), after-before)
+}

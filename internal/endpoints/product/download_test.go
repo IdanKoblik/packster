@@ -1,6 +1,7 @@
 package product
 
 import (
+	"artifactor/internal/metrics"
 	"artifactor/internal/utils"
 	"artifactor/pkg/types"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -188,4 +190,41 @@ func TestHandleDownload(t *testing.T) {
 			repo.AssertExpectations(t)
 		})
 	}
+}
+
+func TestHandleDownload_SuccessIncrementsMetrics(t *testing.T) {
+	base := t.TempDir()
+	orig, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(base))
+	defer os.Chdir(orig)
+
+	fileDir := filepath.Join(productsBaseDir, "myproduct", "1.0.0")
+	require.NoError(t, os.MkdirAll(fileDir, 0755))
+	filePath := filepath.Join(fileDir, "artifact.zip")
+	require.NoError(t, os.WriteFile(filePath, []byte("data"), 0644))
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = newDownloadRequest(t)
+	c.Params = gin.Params{
+		{Key: "product", Value: "myproduct"},
+		{Key: "version", Value: "1.0.0"},
+	}
+	c.Set("admin", true)
+	c.Set("token", "mytoken")
+
+	repo := &mockProductRepo{}
+	repo.On("FetchProduct", "myproduct").Return(
+		productWithTokenAndVersion("mytoken", types.TokenPermissions{Download: true}, "1.0.0", types.Version{Path: filePath, Checksum: "abc"}), nil,
+	)
+
+	before := testutil.ToFloat64(metrics.ArtifactDownloadsTotal.WithLabelValues("myproduct"))
+
+	handler := &ProductHandler{Repo: repo}
+	handler.HandleDownload(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, float64(1), testutil.ToFloat64(metrics.ArtifactDownloadsTotal.WithLabelValues("myproduct"))-before)
 }

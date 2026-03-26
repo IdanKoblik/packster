@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"artifactor/internal/metrics"
 	"artifactor/internal/utils"
 	"artifactor/pkg/types"
 	"context"
@@ -167,6 +168,11 @@ func (r *AuthRepository) FetchToken(rawToken string) (*types.ApiToken, error) {
 	_, err := r.RedisClient.Get(context.Background(), r.getCacheKey(hashedToken)).Result()
 	if err != nil && !errors.Is(err, redis.Nil) {
 		return nil, err
+	}
+	if err == nil {
+		metrics.AuthCacheHits.Inc()
+	} else {
+		metrics.AuthCacheMisses.Inc()
 	}
 
 	collection := r.MongoDatabase.Collection(r.Cfg.Mongo.TokenCollection)
