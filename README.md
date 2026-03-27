@@ -46,6 +46,10 @@ redis:
   addr: "localhost:6379"
   password: ""
   db: 0
+
+metrics:
+  addr: "0.0.0.0:9091"
+
 ```
 
 ## Running
