@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"artifactor/pkg/types"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -61,7 +60,7 @@ func TestHandleListTokens_Success(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodGet, "/tokens", nil)
 	c.Set("admin", true)
 
-	tokens := []types.ApiToken{{Token: "hash1", Admin: true}, {Token: "hash2", Admin: false}}
+	tokens := []string{"hash1", "hash2"}
 	repo := &mockRepo{}
 	repo.On("ListTokens").Return(tokens, nil)
 

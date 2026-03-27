@@ -1,7 +1,8 @@
 package config
 
 type Config struct {
-	FileUploadLimit int `yaml:"file_upload_limit,omitempty"`
+	FileUploadLimit int    `yaml:"file_upload_limit,omitempty"`
+	JWTSecret       string `yaml:"jwt_secret"`
 
 	Mongo   MongoConfig   `yaml:"mongo"`
 	Redis   RedisConfig   `yaml:"redis"`

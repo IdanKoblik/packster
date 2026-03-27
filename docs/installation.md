@@ -24,6 +24,7 @@ CONFIG_PATH=/etc/artifactor/config.yml ./bin/artifactor
 
 ```yaml
 file_upload_limit: 100  # MB, maximum size of an uploaded artifact
+jwt_secret: "change-me"  # Secret key used to sign JWT tokens (required)
 
 mongo:
   connection_string: mongodb://localhost:27017
@@ -43,6 +44,7 @@ metrics:
 | Field | Description |
 |---|---|
 | `file_upload_limit` | Max upload size in MB |
+| `jwt_secret` | Secret key used to sign and verify JWT tokens (required) |
 | `mongo.connection_string` | MongoDB connection URI |
 | `mongo.database` | Database name |
 | `mongo.token_collection` | Collection used to store tokens |
@@ -100,7 +102,7 @@ Prometheus scrapes the `/metrics` endpoint exposed by the running artifactor bin
 
 ## Authentication
 
-Every request must include an `X-Api-Token` header with a valid token.
+Every request must include an `X-Api-Token` header with a valid JWT token. Tokens are signed with the `jwt_secret` from your config and encode the token's unique identifier.
 
 There are two token types:
 
@@ -115,6 +117,6 @@ On first run, pass `--init-admin-token` to generate an initial admin token:
 CONFIG_PATH=./config.yml ./bin/artifactor --init-admin-token
 ```
 
-The token is printed to the log output. Remove the flag after the first use — it is a no-op if an admin token already exists.
+The JWT token is printed to the log output. Remove the flag after the first use — it is a no-op if an admin token already exists.
 
 Use this token in the `X-Api-Token` header for all subsequent admin operations, such as registering additional tokens via `PUT /api/register`.

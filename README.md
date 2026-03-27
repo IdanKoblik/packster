@@ -35,6 +35,7 @@ Create a YAML config file (see `fixtures/example.yml` for reference):
 
 ```yaml
 file_upload_limit: 20              # Max upload size in MB
+jwt_secret: "change-me"            # Secret key used to sign JWT tokens
 
 mongo:
   connection_string: "mongodb://localhost:27017/"
@@ -81,11 +82,11 @@ On first run, generate an initial admin token:
 CONFIG_PATH=./config.yml ./bin/artifactor --init-admin-token
 ```
 
-This prints an admin token to the logs. Save it — you'll use it in the `X-Api-Token` header to perform admin operations. Remove the flag after the first run; it has no effect once an admin token exists.
+This prints a JWT token to the logs. Save it — you'll use it in the `X-Api-Token` header to perform admin operations. Remove the flag after the first run; it has no effect once an admin token exists.
 
 ## Usage
 
-All requests require the `X-Api-Token` header.
+All requests require the `X-Api-Token` header with a valid JWT token.
 
 For example:
 ```bash

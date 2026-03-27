@@ -1,5 +1,5 @@
 file_upload_limit: 20
-signing_key: "key"
+jwt_secret: "change-me"
 
 mongo:
   connection_string: "mongodb://localhost:27017/"

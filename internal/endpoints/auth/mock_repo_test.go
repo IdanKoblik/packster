@@ -38,10 +38,10 @@ func (m *mockRepo) IsAdmin(rawToken string) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *mockRepo) ListTokens() ([]types.ApiToken, error) {
+func (m *mockRepo) ListTokens() ([]string, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]types.ApiToken), args.Error(1)
+	return args.Get(0).([]string), args.Error(1)
 }

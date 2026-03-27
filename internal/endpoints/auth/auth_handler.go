@@ -11,7 +11,7 @@ type AuthRepo interface {
 	PruneToken(token string) error
 	IsAdmin(token string) (bool, error)
 	FetchToken(token string) (*types.ApiToken, error)
-	ListTokens() ([]types.ApiToken, error)
+	ListTokens() ([]string, error)
 }
 
 type AuthHandler struct {

@@ -45,9 +45,7 @@ func InitToken(repo *repository.AuthRepository) flags.Flag {
 }
 
 func adminTokenExists(r *repository.AuthRepository) (bool, error) {
-	filter := bson.M{"admin": true}
-
-	count, err := r.MongoDatabase.Collection(r.Cfg.Mongo.TokenCollection).CountDocuments(context.Background(), filter)
+	count, err := r.MongoDatabase.Collection(r.Cfg.Mongo.TokenCollection).CountDocuments(context.Background(), bson.M{})
 	if err != nil {
 		return false, err
 	}

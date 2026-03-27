@@ -8,10 +8,10 @@ import (
 
 // HandleListTokens godoc
 // @Summary      List all API tokens
-// @Description  Returns all registered API tokens. Requires admin privileges.
+// @Description  Returns the hashed IDs of all registered tokens. Requires admin privileges.
 // @Tags         auth
 // @Produce      json
-// @Success      200  {array}   types.ApiToken
+// @Success      200  {array}   string
 // @Failure      401  {string}  string             "Admin privileges required"
 // @Failure      500  {object}  map[string]string  "Internal server error"
 // @Security     ApiKeyAuth
