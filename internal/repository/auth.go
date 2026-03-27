@@ -10,6 +10,7 @@ import (
 
 	"artifactor/pkg/config"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -107,7 +108,14 @@ func (r *AuthRepository) CreateToken(request *types.RegisterRequest) (string, er
 
 	r.RedisClient.Set(context.Background(), r.getCacheKey(hashedID), "_", r.CacheTTL)
 
-	jwtToken, err := utils.SignToken(id, request.Admin, r.Cfg.JWTSecret)
+	claims := &utils.TokenClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: id,
+		},
+		Admin: request.Admin,
+	}
+
+	jwtToken, err := utils.SignToken(claims, r.Cfg.JWTSecret)
 	if err != nil {
 		return "", err
 	}

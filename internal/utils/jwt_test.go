@@ -3,6 +3,7 @@ package utils
 import (
 	"testing"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -10,28 +11,48 @@ import (
 const testSecret = "test-secret"
 
 func TestSignAndParseToken(t *testing.T) {
-	token, err := SignToken("some-uuid", false, testSecret)
+	claims := &TokenClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: "some-uuid",
+		},
+		Admin: false,
+	}
+
+	token, err := SignToken(claims, testSecret)
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
 
-	claims, err := ParseToken(token, testSecret)
+	output, err := ParseToken(token, testSecret)
 	require.NoError(t, err)
-	assert.Equal(t, "some-uuid", claims.Subject)
-	assert.False(t, claims.Admin)
+	assert.Equal(t, "some-uuid", output.Subject)
+	assert.False(t, output.Admin)
 }
 
 func TestSignAndParseToken_Admin(t *testing.T) {
-	token, err := SignToken("admin-uuid", true, testSecret)
+	claims := &TokenClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: "admin-uuid",
+		},
+		Admin: true,
+	}
+	token, err := SignToken(claims, testSecret)
 	require.NoError(t, err)
 
-	claims, err := ParseToken(token, testSecret)
+	output, err := ParseToken(token, testSecret)
 	require.NoError(t, err)
-	assert.Equal(t, "admin-uuid", claims.Subject)
-	assert.True(t, claims.Admin)
+	assert.Equal(t, "admin-uuid", output.Subject)
+	assert.True(t, output.Admin)
 }
 
 func TestParseToken_WrongSecret(t *testing.T) {
-	token, err := SignToken("some-uuid", false, testSecret)
+	claims := &TokenClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: "some-uuid",
+		},
+		Admin: false,
+	}
+
+	token, err := SignToken(claims, testSecret)
 	require.NoError(t, err)
 
 	_, err = ParseToken(token, "wrong-secret")
@@ -44,8 +65,13 @@ func TestParseToken_InvalidToken(t *testing.T) {
 }
 
 func TestParseToken_TamperedClaims(t *testing.T) {
-	// A token signed with a different secret should be rejected
-	token, err := SignToken("uuid-1", true, "other-secret")
+	claims := &TokenClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: "uuid-1",
+		},
+		Admin: true,
+	}
+	token, err := SignToken(claims, "other-secret")
 	require.NoError(t, err)
 
 	_, err = ParseToken(token, testSecret)

@@ -11,14 +11,8 @@ type TokenClaims struct {
 	Admin bool `json:"admin"`
 }
 
-func SignToken(id string, admin bool, secret string) (string, error) {
-	claims := TokenClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject: id,
-		},
-		Admin: admin,
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+func SignToken(claims *TokenClaims, secret string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, *claims)
 	return token.SignedString([]byte(secret))
 }
 
