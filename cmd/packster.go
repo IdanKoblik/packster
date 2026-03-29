@@ -9,19 +9,19 @@ import (
 	"strings"
 	"time"
 
-	internalconfig "artifactor/internal/config"
-	"artifactor/internal/endpoints"
-	"artifactor/internal/endpoints/auth"
-	"artifactor/internal/endpoints/product"
-	"artifactor/internal/flags"
-	"artifactor/internal/logging"
-	"artifactor/internal/metrics"
-	"artifactor/internal/middleware"
-	internalmongo "artifactor/internal/mongo"
-	internalredis "artifactor/internal/redis"
-	"artifactor/internal/repository"
-	"artifactor/internal/ui"
-	"artifactor/pkg/config"
+	internalconfig "packster/internal/config"
+	"packster/internal/endpoints"
+	"packster/internal/endpoints/auth"
+	"packster/internal/endpoints/product"
+	"packster/internal/flags"
+	"packster/internal/logging"
+	"packster/internal/metrics"
+	"packster/internal/middleware"
+	internalmongo "packster/internal/mongo"
+	internalredis "packster/internal/redis"
+	"packster/internal/repository"
+	"packster/internal/ui"
+	"packster/pkg/config"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -45,7 +45,7 @@ const RESET = "\033[0m"
 
 var BUILD_TIME string
 
-// @title           Artifactor API
+// @title           Packster API
 // @version         1.0.0
 // @description     Package version management service — store, retrieve, and manage versioned build artifacts.
 // @BasePath        /api

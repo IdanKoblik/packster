@@ -1,10 +1,10 @@
 package repository_test
 
 import (
-	"artifactor/pkg/types"
+	"packster/pkg/types"
 	"testing"
 
-	"artifactor/internal/helpers"
+	"packster/internal/helpers"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

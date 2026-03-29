@@ -5,19 +5,19 @@
 Clone the repository and build the binary:
 
 ```bash
-git clone https://github.com/IdanKoblik/artifactor
-cd artifactor
+git clone https://github.com/IdanKoblik/packster
+cd packster
 make build
 ```
 
-The binary is written to `bin/artifactor`.
+The binary is written to `bin/packster`.
 
 ## Configuration
 
-Artifactor is configured with a YAML file. Point to it with the `CONFIG_PATH` environment variable:
+Packster is configured with a YAML file. Point to it with the `CONFIG_PATH` environment variable:
 
 ```bash
-CONFIG_PATH=/etc/artifactor/config.yml ./bin/artifactor
+CONFIG_PATH=/etc/packster/config.yml ./bin/packster
 ```
 
 **Example config:**
@@ -27,7 +27,7 @@ file_upload_limit: 100  # MB, maximum size of an uploaded artifact
 
 mongo:
   connection_string: mongodb://localhost:27017
-  database: artifactor
+  database: packster
   token_collection: tokens
   product_collection: products
 
@@ -57,19 +57,19 @@ metrics:
 Start the server:
 
 ```bash
-CONFIG_PATH=./config.yml ./bin/artifactor
+CONFIG_PATH=./config.yml ./bin/packster
 ```
 
 To also enable the web UI:
 
 ```bash
-CONFIG_PATH=./config.yml ./bin/artifactor --ui
+CONFIG_PATH=./config.yml ./bin/packster --ui
 ```
 
 By default the server listens on `0.0.0.0:8080`. Override with `SERVER_ADDR`:
 
 ```bash
-SERVER_ADDR=0.0.0.0:9090 CONFIG_PATH=./config.yml ./bin/artifactor
+SERVER_ADDR=0.0.0.0:9090 CONFIG_PATH=./config.yml ./bin/packster
 ```
 
 **Starting dependencies with Docker Compose:**
@@ -89,7 +89,7 @@ This starts:
 | Prometheus | 9090 | Scrapes `host.docker.internal:9091` every 15 s |
 | Grafana | 3000 | Pre-provisioned dashboard at `http://localhost:3000` (admin / admin) |
 
-Prometheus scrapes the `/metrics` endpoint exposed by the running artifactor binary on port `9091`. Make sure artifactor is running before expecting data in Grafana.
+Prometheus scrapes the `/metrics` endpoint exposed by the running packster binary on port `9091`. Make sure packster is running before expecting data in Grafana.
 
 ## Flags
 
@@ -112,7 +112,7 @@ There are two token types:
 On first run, pass `--init-admin-token` to generate an initial admin token:
 
 ```bash
-CONFIG_PATH=./config.yml ./bin/artifactor --init-admin-token
+CONFIG_PATH=./config.yml ./bin/packster --init-admin-token
 ```
 
 The token is printed to the log output. Remove the flag after the first use — it is a no-op if an admin token already exists.

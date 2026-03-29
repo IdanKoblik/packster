@@ -1,8 +1,8 @@
 package product
 
 import (
-	"artifactor/internal/utils"
-	"artifactor/pkg/types"
+	"packster/internal/utils"
+	"packster/pkg/types"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

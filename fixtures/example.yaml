@@ -3,7 +3,7 @@ signing_key: "key"
 
 mongo:
   connection_string: "mongodb://localhost:27017/"
-  database: "artifactor"
+  database: "packster"
   token_collection: "tokens"
   product_collection: "products"
 

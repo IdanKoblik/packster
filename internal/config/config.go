@@ -5,8 +5,8 @@ import (
 	"strings"
 	"fmt"
 
-	"artifactor/internal/logging"
-	"artifactor/pkg/config"
+	"packster/internal/logging"
+	"packster/pkg/config"
 	"github.com/goccy/go-yaml"
 )
 

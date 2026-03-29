@@ -3,8 +3,8 @@ package flags
 import (
 	"fmt"
 
-	"artifactor/internal/logging"
-	"artifactor/pkg/flags"
+	"packster/internal/logging"
+	"packster/pkg/flags"
 )
 
 var Flags map[string]flags.Flag

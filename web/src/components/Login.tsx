@@ -32,7 +32,7 @@ export default function Login({ onLogin }: Props) {
     <div className="login-wrapper">
       <div className="login-card">
         <div className="login-logo">
-          <div className="login-logo-text">ARTIFACTOR</div>
+          <div className="login-logo-text">PACKSTER</div>
           <div className="login-subtitle">Admin Interface</div>
         </div>
 

@@ -5,8 +5,8 @@ import spec from '../public/openapi.json'
 const sidebar = useSidebar({ spec })
 
 export default defineConfig({
-  base: '/artifactor/',
-  title: 'Artifactor',
+  base: '/packster/',
+  title: 'Packster',
   description: 'Package version management — API documentation',
   themeConfig: {
     nav: [
@@ -29,7 +29,7 @@ export default defineConfig({
       },
     ],
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/IdanKoblik/artifactor' },
+      { icon: 'github', link: 'https://github.com/IdanKoblik/packster' },
     ],
   },
 })

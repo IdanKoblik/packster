@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	internalconfig "artifactor/internal/config"
-	pkgconfig "artifactor/pkg/config"
+	internalconfig "packster/internal/config"
+	pkgconfig "packster/pkg/config"
 
 	"github.com/stretchr/testify/assert"
 	driver "go.mongodb.org/mongo-driver/v2/mongo"

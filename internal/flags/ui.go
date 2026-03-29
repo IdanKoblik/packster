@@ -1,8 +1,8 @@
 package flags
 
 import (
-	"artifactor/internal/logging"
-	"artifactor/pkg/flags"
+	"packster/internal/logging"
+	"packster/pkg/flags"
 )
 
 func UIFlag() flags.Flag {

@@ -26,7 +26,7 @@ export default function Dashboard({ token, isAdmin, onLogout }: Props) {
     <div className="dashboard">
       <header className="header">
         <div className="header-inner">
-          <span className="header-title">ARTIFACTOR</span>
+          <span className="header-title">PACKSTER</span>
           <div className="header-right">
             {isAdmin && <span className="badge-admin">admin</span>}
             <button className="btn btn-secondary btn-sm" onClick={() => setConfirmLogout(true)}>

@@ -2,7 +2,7 @@ GO := go
 
 COVER_OUT := coverage.out
 COVER_HTML := coverage.html
-SERVICE_NAME := artifactor
+SERVICE_NAME := packster
 
 .PHONY: all
 all: build

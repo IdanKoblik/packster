@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"artifactor/pkg/types"
+	"packster/pkg/types"
 
 	"github.com/stretchr/testify/mock"
 )

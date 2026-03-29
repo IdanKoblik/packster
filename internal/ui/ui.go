@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"artifactor/internal/logging"
-	"artifactor/pkg/types"
+	"packster/internal/logging"
+	"packster/pkg/types"
 
 	"github.com/gin-gonic/gin"
 )

@@ -2,8 +2,8 @@ import { useState } from 'react'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 
-const TOKEN_KEY = 'artifactor_token'
-const ADMIN_KEY = 'artifactor_admin'
+const TOKEN_KEY = 'packster_token'
+const ADMIN_KEY = 'packster_admin'
 
 export default function App() {
   const [token, setToken] = useState<string | null>(

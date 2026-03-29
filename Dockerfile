@@ -6,9 +6,9 @@ RUN adduser -D -u 10001 container
 
 WORKDIR /app/
 
-COPY artifactor /app/
+COPY packster /app/
 
 USER container
 WORKDIR /home/container/
 
-ENTRYPOINT ["/app/artifactor"]
+ENTRYPOINT ["/app/packster"]

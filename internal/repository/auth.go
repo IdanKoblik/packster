@@ -1,14 +1,14 @@
 package repository
 
 import (
-	"artifactor/internal/metrics"
-	"artifactor/internal/utils"
-	"artifactor/pkg/types"
+	"packster/internal/metrics"
+	"packster/internal/utils"
+	"packster/pkg/types"
 	"context"
 	"errors"
 	"time"
 
-	"artifactor/pkg/config"
+	"packster/pkg/config"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"

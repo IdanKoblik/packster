@@ -1,9 +1,9 @@
 package product
 
 import (
-	"artifactor/internal/metrics"
-	"artifactor/internal/utils"
-	"artifactor/pkg/types"
+	"packster/internal/metrics"
+	"packster/internal/utils"
+	"packster/pkg/types"
 	"errors"
 	"net/http"
 	"net/http/httptest"

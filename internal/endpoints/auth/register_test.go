@@ -1,7 +1,7 @@
 package auth
 
 import (
-	pkghttp "artifactor/pkg/types"
+	pkghttp "packster/pkg/types"
 	"bytes"
 	"encoding/json"
 	"errors"

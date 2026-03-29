@@ -1,7 +1,7 @@
 package product
 
 import (
-	"artifactor/pkg/types"
+	"packster/pkg/types"
 	"fmt"
 	"net/http"
 

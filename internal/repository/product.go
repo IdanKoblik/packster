@@ -1,9 +1,9 @@
 package repository
 
 import (
-	"artifactor/internal/utils"
-	"artifactor/pkg/config"
-	"artifactor/pkg/types"
+	"packster/internal/utils"
+	"packster/pkg/config"
+	"packster/pkg/types"
 	"context"
 	"errors"
 	"time"

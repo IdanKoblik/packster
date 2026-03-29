@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"artifactor/pkg/types"
+	"packster/pkg/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

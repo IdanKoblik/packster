@@ -1,4 +1,4 @@
-# Artifactor
+# Packster
 
 A self-hosted REST API service for managing versioned build artifacts. Store, retrieve, and control access to your build outputs with token-based authentication and per-product permissions.
 
@@ -13,13 +13,13 @@ A self-hosted REST API service for managing versioned build artifacts. Store, re
 ### From Source
 
 ```bash
-git clone https://github.com/IdanKoblik/artifactor.git
-cd artifactor
+git clone https://github.com/IdanKoblik/packster.git
+cd packster
 go mod tidy
 make build
 ```
 
-The binary will be at `bin/artifactor`.
+The binary will be at `bin/packster`.
 
 ### Docker Compose (Dependencies)
 
@@ -38,7 +38,7 @@ file_upload_limit: 20              # Max upload size in MB
 
 mongo:
   connection_string: "mongodb://localhost:27017/"
-  database: "artifactor"
+  database: "packster"
   token_collection: "tokens"
   product_collection: "products"
 
@@ -57,13 +57,13 @@ metrics:
 Set the `CONFIG_PATH` environment variable to point to your config file:
 
 ```bash
-CONFIG_PATH=./config.yml ./bin/artifactor
+CONFIG_PATH=./config.yml ./bin/packster
 ```
 
 To listen on a custom address (default is `0.0.0.0:8080`):
 
 ```bash
-SERVER_ADDR=0.0.0.0:9090 CONFIG_PATH=./config.yml ./bin/artifactor
+SERVER_ADDR=0.0.0.0:9090 CONFIG_PATH=./config.yml ./bin/packster
 ```
 
 ### Environment Variables
@@ -78,7 +78,7 @@ SERVER_ADDR=0.0.0.0:9090 CONFIG_PATH=./config.yml ./bin/artifactor
 On first run, generate an initial admin token:
 
 ```bash
-CONFIG_PATH=./config.yml ./bin/artifactor --init-admin-token
+CONFIG_PATH=./config.yml ./bin/packster --init-admin-token
 ```
 
 This prints an admin token to the logs. Save it — you'll use it in the `X-Api-Token` header to perform admin operations. Remove the flag after the first run; it has no effect once an admin token exists.

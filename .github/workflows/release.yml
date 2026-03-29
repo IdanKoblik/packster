@@ -68,8 +68,8 @@ jobs:
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: artifactor-linux-amd64
-          path: bin/artifactor
+          name: packster-linux-amd64
+          path: bin/packster
 
   ghcr:
     name: Push to GHCR
@@ -83,11 +83,11 @@ jobs:
       - name: Download binary artifact
         uses: actions/download-artifact@v4
         with:
-          name: artifactor-linux-amd64
+          name: packster-linux-amd64
           path: bin/
 
       - name: Prepare binary for Docker build context
-        run: cp bin/artifactor artifactor && chmod +x artifactor
+        run: cp bin/packster packster && chmod +x packster
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -124,7 +124,7 @@ jobs:
       - name: Download binary artifact
         uses: actions/download-artifact@v4
         with:
-          name: artifactor-linux-amd64
+          name: packster-linux-amd64
           path: bin/
 
       - name: Create GitHub Release
@@ -132,5 +132,5 @@ jobs:
         with:
           tag_name: ${{ inputs.version }}
           name: Release ${{ inputs.version }}
-          files: bin/artifactor
+          files: bin/packster
           generate_release_notes: true

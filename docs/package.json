@@ -1,5 +1,5 @@
 {
-  "name": "artifactor-docs",
+  "name": "packster-docs",
   "private": true,
   "scripts": {
     "dev": "vitepress dev",

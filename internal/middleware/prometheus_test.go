@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"artifactor/internal/metrics"
+	"packster/internal/metrics"
 	"net/http"
 	"net/http/httptest"
 	"testing"

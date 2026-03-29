@@ -1,7 +1,7 @@
 package mongo
 
 import (
-	"artifactor/pkg/config"
+	"packster/pkg/config"
 	"context"
 	"errors"
 

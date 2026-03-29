@@ -1,12 +1,12 @@
 ---
 layout: home
 hero:
-  name: Artifactor
+  name: Packster
   text: Package Version Management
   tagline: Store, retrieve, and manage versioned build artifacts with a simple REST API.
   image:
-    src: /artifactor-logo.png
-    alt: Artifactor
+    src: /packster-logo.png
+    alt: Packster
   actions:
     - theme: brand
       text: Get Started
@@ -16,7 +16,7 @@ hero:
       link: /api
     - theme: alt
       text: View on GitHub
-      link: https://github.com/IdanKoblik/artifactor
+      link: https://github.com/IdanKoblik/packster
 features:
   - title: Token-based Auth
     details: Every request is authenticated via an X-Api-Token header. Admin tokens can manage users; per-product permissions control who can upload, download, or delete.

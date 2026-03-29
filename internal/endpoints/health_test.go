@@ -1,8 +1,8 @@
 package endpoints
 
 import (
-	"artifactor/internal/helpers"
-	"artifactor/internal/repository"
+	"packster/internal/helpers"
+	"packster/internal/repository"
 	"net/http"
 	"net/http/httptest"
 	"testing"

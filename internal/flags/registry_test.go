@@ -3,7 +3,7 @@ package flags
 import (
 	"testing"
 
-	"artifactor/pkg/flags"
+	"packster/pkg/flags"
 	"github.com/stretchr/testify/assert"
 )
 

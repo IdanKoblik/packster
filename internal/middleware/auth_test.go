@@ -1,14 +1,14 @@
 package middleware
 
 import (
-	"artifactor/internal/metrics"
-	"artifactor/pkg/types"
+	"packster/internal/metrics"
+	"packster/pkg/types"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"artifactor/internal/repository"
+	"packster/internal/repository"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/testutil"

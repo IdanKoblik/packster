@@ -1,7 +1,7 @@
 package redis
 
 import (
-	"artifactor/pkg/config"
+	"packster/pkg/config"
 	"context"
 	"fmt"
 

@@ -1,8 +1,8 @@
 package product
 
 import (
-	"artifactor/internal/repository"
-	"artifactor/pkg/types"
+	"packster/internal/repository"
+	"packster/pkg/types"
 )
 
 type ProductRepo interface {

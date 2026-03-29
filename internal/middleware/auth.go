@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"artifactor/internal/metrics"
-	"artifactor/internal/repository"
+	"packster/internal/metrics"
+	"packster/internal/repository"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

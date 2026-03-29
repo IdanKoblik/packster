@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Artifactor API",
+    "title": "Packster API",
     "description": "Package version management service — store, retrieve, and manage versioned build artifacts.",
     "version": "1.0.0"
   },

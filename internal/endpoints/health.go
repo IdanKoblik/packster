@@ -1,9 +1,9 @@
 package endpoints
 
 import (
-	internalmongo "artifactor/internal/mongo"
-	internalredis "artifactor/internal/redis"
-	responses "artifactor/pkg/types"
+	internalmongo "packster/internal/mongo"
+	internalredis "packster/internal/redis"
+	responses "packster/pkg/types"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

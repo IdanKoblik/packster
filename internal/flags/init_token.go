@@ -1,10 +1,10 @@
 package flags
 
 import (
-	"artifactor/internal/logging"
-	"artifactor/internal/repository"
-	"artifactor/pkg/flags"
-	"artifactor/pkg/types"
+	"packster/internal/logging"
+	"packster/internal/repository"
+	"packster/pkg/flags"
+	"packster/pkg/types"
 	"context"
 
 	"go.mongodb.org/mongo-driver/v2/bson"

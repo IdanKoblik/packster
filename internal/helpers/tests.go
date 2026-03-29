@@ -1,10 +1,10 @@
 package helpers
 
 import (
-	internalconfig "artifactor/internal/config"
-	internalmongo "artifactor/internal/mongo"
-	internalredis "artifactor/internal/redis"
-	"artifactor/internal/repository"
+	internalconfig "packster/internal/config"
+	internalmongo "packster/internal/mongo"
+	internalredis "packster/internal/redis"
+	"packster/internal/repository"
 	"path/filepath"
 	"testing"
 

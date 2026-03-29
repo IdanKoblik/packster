@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"artifactor/internal/config"
+	"packster/internal/config"
 
 	"github.com/stretchr/testify/assert"
 )

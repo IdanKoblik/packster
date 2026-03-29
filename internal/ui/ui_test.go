@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"artifactor/pkg/types"
+	"packster/pkg/types"
 	"bytes"
 	"encoding/json"
 	"errors"

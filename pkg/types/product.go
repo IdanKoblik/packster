@@ -1,6 +1,6 @@
 package types
 
-import "artifactor/internal/utils"
+import "packster/internal/utils"
 
 type Product struct {
 	Name     string                      `json:"name" bson:"_id"`

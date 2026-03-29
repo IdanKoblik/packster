@@ -1,4 +1,4 @@
-module artifactor
+module packster
 
 go 1.25.7
 

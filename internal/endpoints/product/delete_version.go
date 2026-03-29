@@ -1,7 +1,7 @@
 package product
 
 import (
-	"artifactor/internal/utils"
+	"packster/internal/utils"
 	"net/http"
 	"os"
 	"path/filepath"

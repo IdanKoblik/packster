@@ -1,8 +1,8 @@
 package product
 
 import (
-	"artifactor/internal/metrics"
-	"artifactor/internal/utils"
+	"packster/internal/metrics"
+	"packster/internal/utils"
 	"net/http"
 	"path/filepath"
 	"strings"

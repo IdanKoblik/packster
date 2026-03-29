@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"artifactor/pkg/types"
+	"packster/pkg/types"
 	"errors"
 	"net/http"
 	"net/http/httptest"
