@@ -1,11 +1,11 @@
 package product
 
 import (
+	"fmt"
+	"net/http"
 	"packster/internal/metrics"
 	"packster/internal/utils"
 	"packster/pkg/types"
-	"fmt"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,9 +17,10 @@ const mbInBytes = 1 << 20
 // @Description  Uploads a file as a new version of a product. Requires Upload permission. Duplicate version names are rejected.
 // @Tags         versions
 // @Accept       multipart/form-data
-// @Param        product  formData  string  true  "Product name"
-// @Param        version  formData  string  true  "Version identifier"
-// @Param        file     formData  file    true  "Artifact file"
+// @Param        product    formData  string  true  "Product name"
+// @Param        group_name formData  string  false "Product group (default: empty)"
+// @Param        version    formData  string  true  "Version identifier"
+// @Param        file       formData  file    true  "Artifact file"
 // @Success      201  "Version uploaded"
 // @Failure      400  {object}  map[string]string  "Invalid request or duplicate version"
 // @Failure      403  {string}  string  "Permission denied"
@@ -59,7 +60,7 @@ func (h *ProductHandler) HandleUpload(c *gin.Context) {
 		return
 	}
 
-	product, err := h.Repo.FetchProduct(request.Product)
+	product, err := h.Repo.FetchProduct(request.Product, request.GroupName)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -85,7 +86,14 @@ func (h *ProductHandler) HandleUpload(c *gin.Context) {
 		return
 	}
 
-	location := fmt.Sprintf("./prodcuts/%s/%s/%s", request.Product, request.Version, safeFilename)
+	var baseDir string
+	if request.GroupName == "" {
+		baseDir = request.Product
+	} else {
+		baseDir = request.GroupName + "/" + request.Product
+	}
+	location := fmt.Sprintf("./prodcuts/%s/%s/%s", baseDir, request.Version, safeFilename)
+
 	err = c.SaveUploadedFile(request.File, location)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -111,6 +119,7 @@ func (h *ProductHandler) HandleUpload(c *gin.Context) {
 
 	err = h.Repo.AddVersion(
 		request.Product,
+		request.GroupName,
 		request.Version,
 		c.GetString("token"),
 		c.GetBool("admin"),

@@ -1,9 +1,9 @@
 package product
 
 import (
-	"packster/pkg/types"
 	"fmt"
 	"net/http"
+	"packster/pkg/types"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,13 +28,13 @@ var actions = map[string]action{
 // @Description  Dispatches to one of three sub-actions based on the {action} path parameter.
 // @Description
 // @Description  **deleteVersion** (DELETE): Remove a version from a product.
-// @Description  Body: `{"product": "...", "version": "..."}`
+// @Description  Body: `{"product": "...", "group_name": "...", "version": "..."}`
 // @Description
 // @Description  **deleteToken** (DELETE): Revoke a token's access to a product.
-// @Description  Body: `{"product": "...", "token": "..."}`
+// @Description  Body: `{"product": "...", "group_name": "...", "token": "..."}`
 // @Description
 // @Description  **addToken** (PUT): Grant a token access to a product with specified permissions.
-// @Description  Body: `{"product": "...", "token": "...", "permissions": {...}}`
+// @Description  Body: `{"product": "...", "group_name": "...", "token": "...", "permissions": {...}}`
 // @Tags         products
 // @Accept       json
 // @Param        action  path  string  true  "Action to perform"  Enums(deleteVersion, deleteToken, addToken)
@@ -82,7 +82,7 @@ func handleDeleteToken(c *gin.Context, h *ProductHandler) {
 		return
 	}
 
-	err = h.Repo.DeleteToken(request.Product, c.GetString("token"), request.Token, c.GetBool("admin"))
+	err = h.Repo.DeleteToken(request.Product, request.GroupName, c.GetString("token"), request.Token, c.GetBool("admin"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -110,7 +110,7 @@ func handleAddToken(c *gin.Context, h *ProductHandler) {
 		return
 	}
 
-	err = h.Repo.AddToken(request.Product, c.GetString("token"), request.Token, request.Permissions, c.GetBool("admin"))
+	err = h.Repo.AddToken(request.Product, request.GroupName, c.GetString("token"), request.Token, request.Permissions, c.GetBool("admin"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -135,6 +135,7 @@ func handleDeleteVersion(c *gin.Context, h *ProductHandler) {
 
 	err = h.Repo.DeleteVersion(
 		request.Product,
+		request.GroupName,
 		request.Version,
 		c.GetString("token"),
 		c.GetBool("admin"),

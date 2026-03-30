@@ -1,7 +1,7 @@
 package main
 
 import (
-	"context"
+	"database/sql"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
@@ -17,7 +17,7 @@ import (
 	"packster/internal/logging"
 	"packster/internal/metrics"
 	"packster/internal/middleware"
-	internalmongo "packster/internal/mongo"
+	internalmysql "packster/internal/mysql"
 	internalredis "packster/internal/redis"
 	"packster/internal/repository"
 	"packster/internal/ui"
@@ -26,7 +26,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 const BANNER = `
@@ -63,18 +62,17 @@ func main() {
 	}
 
 	logging.Log.Debugf("Max file size that can be uploaded: %d MB\n", cfg.FileUploadLimit)
-	logging.Log.Info("Connecting to mongo database.")
-	logging.Log.Debugf("Connection URL: %s", generateMask())
-	logging.Log.Debugf("Database: %s", cfg.Mongo.Database)
+	logging.Log.Info("Connecting to mysql database.")
+	logging.Log.Debugf("DSN: %s", generateMask())
 
-	mongoClient, err := internalmongo.OpenConnection(&cfg.Mongo)
+	db, err := internalmysql.OpenConnection(&cfg.MySQL)
 	if err != nil {
-		logging.Log.Error("Failed to connect to mongo database\n", err)
+		logging.Log.Error("Failed to connect to mysql database\n", err)
 		os.Exit(1)
 	}
 
-	defer mongoClient.Disconnect(context.Background())
-	logging.Log.Info("Successfully connected to mongo database!\n")
+	defer db.Close()
+	logging.Log.Info("Successfully connected to mysql database!\n")
 
 	logging.Log.Info("Connecting to redis database.")
 	logging.Log.Debugf("Addr: %s", cfg.Redis.Addr)
@@ -89,9 +87,9 @@ func main() {
 	defer redisClient.Close()
 	logging.Log.Info("Successfully connected to redis database!\n")
 
-	authRepo := repository.NewAuthRepository(redisClient, mongoClient, &cfg)
+	authRepo := repository.NewAuthRepository(redisClient, db, &cfg)
 
-	startHealthProbes(mongoClient, redisClient)
+	startHealthProbes(db, redisClient)
 
 	logging.Log.Info("Starting rest api")
 	router := gin.Default()
@@ -100,8 +98,8 @@ func main() {
 
 	api := router.Group("/api")
 
-	setupAuthEndpoints(authRepo, redisClient, mongoClient, api)
-	setupProductEndpoints(authRepo, mongoClient, &cfg, api)
+	setupAuthEndpoints(authRepo, redisClient, db, api)
+	setupProductEndpoints(authRepo, db, &cfg, api)
 
 	if isUIEnabled() {
 		ui.SetupUI(authRepo, router)
@@ -139,14 +137,14 @@ func startMetricsServer(cfg *config.Config) {
 	}()
 }
 
-// startHealthProbes runs a background goroutine that updates the mongo_up and
+// startHealthProbes runs a background goroutine that updates the mysql_up and
 // redis_up gauges every 15 seconds so dashboards reflect current dependency health.
-func startHealthProbes(mongoClient *mongo.Client, redisClient *redis.Client) {
+func startHealthProbes(db *sql.DB, redisClient *redis.Client) {
 	probe := func() {
-		if err := internalmongo.CheckHealth(mongoClient); err != nil {
-			metrics.MongoUp.Set(0)
+		if err := internalmysql.CheckHealth(db); err != nil {
+			metrics.MySQLUp.Set(0)
 		} else {
-			metrics.MongoUp.Set(1)
+			metrics.MySQLUp.Set(1)
 		}
 		if err := internalredis.CheckHealth(redisClient); err != nil {
 			metrics.RedisUp.Set(0)
@@ -165,7 +163,7 @@ func startHealthProbes(mongoClient *mongo.Client, redisClient *redis.Client) {
 	}()
 }
 
-func setupAuthEndpoints(authRepo *repository.AuthRepository, redisClient *redis.Client, mongoClient *mongo.Client, api *gin.RouterGroup) {
+func setupAuthEndpoints(authRepo *repository.AuthRepository, redisClient *redis.Client, db *sql.DB, api *gin.RouterGroup) {
 	authHandler := auth.NewAuthHandler(authRepo)
 
 	startFlagSystem(authRepo)
@@ -186,13 +184,13 @@ func setupAuthEndpoints(authRepo *repository.AuthRepository, redisClient *redis.
 		api.GET("/fetch/:token", authHandler.HandleFetch)
 		api.GET("/tokens", authHandler.HandleListTokens)
 		api.GET("/health", func(c *gin.Context) {
-			endpoints.HandleHealth(c, mongoClient, redisClient)
+			endpoints.HandleHealth(c, db, redisClient)
 		})
 	}
 }
 
-func setupProductEndpoints(authRepo repository.IAuthRepo, mongoClient *mongo.Client, cfg *config.Config, api *gin.RouterGroup) {
-	productRepo := repository.NewProductRepository(mongoClient, cfg)
+func setupProductEndpoints(authRepo repository.IAuthRepo, db *sql.DB, cfg *config.Config, api *gin.RouterGroup) {
+	productRepo := repository.NewProductRepository(db, cfg)
 	productHandler := product.NewProductHandler(productRepo, cfg.FileUploadLimit)
 
 	productApi := api.Group("/product")

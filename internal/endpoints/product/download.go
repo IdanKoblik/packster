@@ -1,9 +1,9 @@
 package product
 
 import (
+	"net/http"
 	"packster/internal/metrics"
 	"packster/internal/utils"
-	"net/http"
 	"path/filepath"
 	"strings"
 
@@ -17,8 +17,9 @@ const productsBaseDir = "prodcuts"
 // @Description  Streams the artifact file for the specified product version. Requires Download permission.
 // @Tags         versions
 // @Produce      application/octet-stream
-// @Param        product  path  string  true  "Product name"
-// @Param        version  path  string  true  "Version identifier"
+// @Param        product  path   string  true  "Product name"
+// @Param        version  path   string  true  "Version identifier"
+// @Param        group    query  string  false "Product group (default: empty)"
 // @Success      200  {file}  binary  "Artifact file — Content-Disposition: attachment; filename=\"<original filename>\""
 // @Failure      400  {string}  string  "Product or version not found"
 // @Failure      403  {string}  string  "Permission denied"
@@ -28,8 +29,9 @@ const productsBaseDir = "prodcuts"
 func (h *ProductHandler) HandleDownload(c *gin.Context) {
 	productName := c.Param("product")
 	version := c.Param("version")
+	group := c.Query("group")
 
-	product, err := h.Repo.FetchProduct(productName)
+	product, err := h.Repo.FetchProduct(productName, group)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),

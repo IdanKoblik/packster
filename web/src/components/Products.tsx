@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function Products({ token, isAdmin }: Props) {
-  const [names, setNames]         = useState<string[] | null>(null)
+  const [products, setProducts]   = useState<Product[] | null>(null)
   const [loadError, setLoadError] = useState('')
   const [loading, setLoading]     = useState(true)
 
@@ -24,24 +24,25 @@ export default function Products({ token, isAdmin }: Props) {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError]     = useState('')
 
-  const [showCreateModal, setShowCreateModal]   = useState(false)
-  const [newName, setNewName]                   = useState('')
-  const [createError, setCreateError]           = useState('')
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [newName, setNewName]                 = useState('')
+  const [newGroup, setNewGroup]               = useState('')
+  const [createError, setCreateError]         = useState('')
 
-  const [downloadingVer, setDownloadingVer]     = useState<string | null>(null)
+  const [downloadingVer, setDownloadingVer] = useState<string | null>(null)
 
-  const [showUploadModal, setShowUploadModal]   = useState(false)
-  const [uploadVer, setUploadVer]               = useState('')
-  const [uploadFile, setUploadFile]             = useState<File | null>(null)
-  const [uploadError, setUploadError]           = useState('')
-  const [uploading, setUploading]               = useState(false)
-  const fileInputRef                            = useRef<HTMLInputElement>(null)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [uploadVer, setUploadVer]             = useState('')
+  const [uploadFile, setUploadFile]           = useState<File | null>(null)
+  const [uploadError, setUploadError]         = useState('')
+  const [uploading, setUploading]             = useState(false)
+  const fileInputRef                          = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setLoadError('')
     try {
-      setNames(await listProducts(token))
+      setProducts(await listProducts(token))
     } catch (e: unknown) {
       setLoadError(e instanceof Error ? e.message : 'Failed to load products')
     } finally {
@@ -51,20 +52,20 @@ export default function Products({ token, isAdmin }: Props) {
 
   useEffect(() => { load() }, [load])
 
-  const refreshSelected = async (name: string) => {
+  const refreshSelected = async (name: string, group: string) => {
     try {
-      setSelected(await fetchProduct(token, name))
+      setSelected(await fetchProduct(token, name, group))
     } catch {
       // ignore — stale detail is acceptable
     }
   }
 
-  const handleView = async (name: string) => {
+  const handleView = async (name: string, group: string) => {
     setDetailLoading(true)
     setDetailError('')
     setSelected(null)
     try {
-      setSelected(await fetchProduct(token, name))
+      setSelected(await fetchProduct(token, name, group))
     } catch (e: unknown) {
       setDetailError(e instanceof Error ? e.message : 'Failed to load product')
     } finally {
@@ -72,12 +73,13 @@ export default function Products({ token, isAdmin }: Props) {
     }
   }
 
-  const handleDelete = async (name: string) => {
-    if (!confirm(`Delete product "${name}"?\nThis cannot be undone.`)) return
+  const handleDelete = async (name: string, group: string) => {
+    const label = group ? `${group}/${name}` : name
+    if (!confirm(`Delete product "${label}"?\nThis cannot be undone.`)) return
     setLoadError('')
     try {
-      await deleteProduct(token, name)
-      if (selected?.name === name) setSelected(null)
+      await deleteProduct(token, name, group)
+      if (selected?.name === name && selected?.group_name === group) setSelected(null)
       load()
     } catch (e: unknown) {
       setLoadError(e instanceof Error ? e.message : 'Failed to delete product')
@@ -86,6 +88,7 @@ export default function Products({ token, isAdmin }: Props) {
 
   const openCreateModal = () => {
     setNewName('')
+    setNewGroup('')
     setCreateError('')
     setShowCreateModal(true)
   }
@@ -95,7 +98,7 @@ export default function Products({ token, isAdmin }: Props) {
     if (!name) { setCreateError('Product name is required'); return }
     setCreateError('')
     try {
-      await createProduct(token, name)
+      await createProduct(token, name, newGroup.trim())
       setShowCreateModal(false)
       load()
     } catch (e: unknown) {
@@ -121,9 +124,9 @@ export default function Products({ token, isAdmin }: Props) {
     setUploadError('')
     setUploading(true)
     try {
-      await uploadVersion(token, selected.name, ver, uploadFile)
+      await uploadVersion(token, selected.name, selected.group_name, ver, uploadFile)
       setShowUploadModal(false)
-      refreshSelected(selected.name)
+      refreshSelected(selected.name, selected.group_name)
     } catch (e: unknown) {
       setUploadError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
@@ -135,7 +138,7 @@ export default function Products({ token, isAdmin }: Props) {
     if (!selected || downloadingVer) return
     setDownloadingVer(ver)
     try {
-      await downloadVersion(token, selected.name, ver)
+      await downloadVersion(token, selected.name, selected.group_name, ver)
     } catch (e: unknown) {
       setDetailError(e instanceof Error ? e.message : 'Download failed')
     } finally {
@@ -147,8 +150,8 @@ export default function Products({ token, isAdmin }: Props) {
     if (!selected) return
     if (!confirm(`Delete version "${ver}" from "${selected.name}"?\nThis cannot be undone.`)) return
     try {
-      await deleteVersion(token, selected.name, ver)
-      refreshSelected(selected.name)
+      await deleteVersion(token, selected.name, selected.group_name, ver)
+      refreshSelected(selected.name, selected.group_name)
     } catch (e: unknown) {
       setDetailError(e instanceof Error ? e.message : 'Failed to delete version')
     }
@@ -167,30 +170,32 @@ export default function Products({ token, isAdmin }: Props) {
 
       {loading ? (
         <div className="loading">Loading…</div>
-      ) : names && names.length > 0 ? (
+      ) : products && products.length > 0 ? (
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Group</th>
                 <th style={{ width: 160 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {names.map(name => (
-                <tr key={name}>
-                  <td>{name}</td>
+              {products.map(p => (
+                <tr key={`${p.group_name}/${p.name}`}>
+                  <td>{p.name}</td>
+                  <td>{p.group_name || <span style={{ opacity: 0.4 }}>—</span>}</td>
                   <td>
                     <div className="flex-gap">
                       <button
                         className="btn btn-secondary btn-sm"
-                        onClick={() => handleView(name)}
+                        onClick={() => handleView(p.name, p.group_name)}
                       >
                         View
                       </button>
                       <button
                         className="btn btn-danger btn-sm"
-                        onClick={() => handleDelete(name)}
+                        onClick={() => handleDelete(p.name, p.group_name)}
                       >
                         Delete
                       </button>
@@ -212,7 +217,9 @@ export default function Products({ token, isAdmin }: Props) {
           {selected && (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <span style={{ fontSize: 14 }}>{selected.name}</span>
+                <span style={{ fontSize: 14 }}>
+                  {selected.group_name ? `${selected.group_name} / ` : ''}{selected.name}
+                </span>
                 <div className="flex-gap">
                   <span className="code">
                     {Object.keys(selected.tokens  ?? {}).length} token(s) ·{' '}
@@ -295,6 +302,18 @@ export default function Products({ token, isAdmin }: Props) {
               />
             </div>
 
+            <div className="form-group">
+              <label htmlFor="product-group">Group <span style={{ opacity: 0.5, fontWeight: 400 }}>(optional)</span></label>
+              <input
+                id="product-group"
+                type="text"
+                value={newGroup}
+                onChange={e => setNewGroup(e.target.value)}
+                placeholder="e.g. staging"
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              />
+            </div>
+
             {createError && <div className="alert alert-error">{createError}</div>}
 
             <div className="modal-footer">
@@ -316,7 +335,9 @@ export default function Products({ token, isAdmin }: Props) {
           onClick={e => { if (e.target === e.currentTarget) setShowUploadModal(false) }}
         >
           <div className="modal">
-            <div className="modal-title">Upload Version — {selected.name}</div>
+            <div className="modal-title">
+              Upload Version — {selected.group_name ? `${selected.group_name} / ` : ''}{selected.name}
+            </div>
 
             <div className="form-group">
               <label htmlFor="upload-ver">Version</label>

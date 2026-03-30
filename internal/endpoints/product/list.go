@@ -1,40 +1,40 @@
 package product
 
 import (
-	"packster/internal/utils"
 	"net/http"
+	"packster/internal/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
 // HandleListProducts godoc
 // @Summary      List products
-// @Description  Returns all product names for admins, or only products accessible to the token for non-admins.
+// @Description  Returns all products for admins, or only products accessible to the token for non-admins.
 // @Tags         products
 // @Produce      json
-// @Success      200  {array}   string
+// @Success      200  {array}   types.Product
 // @Failure      500  {object}  map[string]string  "Internal server error"
 // @Security     ApiKeyAuth
 // @Router       /product/list [get]
 func (h *ProductHandler) HandleListProducts(c *gin.Context) {
-	var (
-		names []string
-		err   error
-	)
-
 	if c.GetBool("admin") {
-		names, err = h.Repo.ListProducts()
+		products, err := h.Repo.ListProducts()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, products)
 	} else {
 		hashedToken := utils.Hash(c.GetString("token"))
-		names, err = h.Repo.ListProductsByToken(hashedToken)
+		products, err := h.Repo.ListProductsByToken(hashedToken)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, products)
 	}
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, names)
 }

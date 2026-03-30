@@ -5,7 +5,7 @@ A self-hosted REST API service for managing versioned build artifacts. Store, re
 ## Requirements
 
 - Go 1.25+
-- MongoDB 7.0+
+- MySQL 8.0+
 - Redis 7+
 
 ## Installation
@@ -23,7 +23,7 @@ The binary will be at `bin/packster`.
 
 ### Docker Compose (Dependencies)
 
-Spin up MongoDB and Redis quickly:
+Spin up MySQL and Redis quickly:
 
 ```bash
 docker compose up -d
@@ -36,11 +36,8 @@ Create a YAML config file (see `fixtures/example.yml` for reference):
 ```yaml
 file_upload_limit: 20              # Max upload size in MB
 
-mongo:
-  connection_string: "mongodb://localhost:27017/"
-  database: "packster"
-  token_collection: "tokens"
-  product_collection: "products"
+mysql:
+  dsn: "root:root@tcp(localhost:3306)/packster?parseTime=true"
 
 redis:
   addr: "localhost:6379"
@@ -49,7 +46,6 @@ redis:
 
 metrics:
   addr: "0.0.0.0:9091"
-
 ```
 
 ## Running
@@ -94,6 +90,19 @@ curl -X PUT http://localhost:8080/api/product/create \
   -H "Content-Type: application/json" \
   -d '{"name": "my-app"}'
 ```
+
+### Product Groups
+
+Products can be organized into groups, allowing the same product name to exist in multiple environments (e.g. `staging`, `production`, `test`):
+
+```bash
+curl -X PUT http://localhost:8080/api/product/create \
+  -H "X-Api-Token: <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-app", "group_name": "staging"}'
+```
+
+Fetch, delete, download, and delete-version endpoints accept an optional `?group=` query parameter. Upload and modify endpoints accept `group_name` in the request body.
 
 ## Permissions
 

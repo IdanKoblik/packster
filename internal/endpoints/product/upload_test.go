@@ -1,15 +1,15 @@
 package product
 
 import (
-	"packster/internal/metrics"
-	"packster/internal/utils"
-	"packster/pkg/types"
 	"bytes"
 	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"packster/internal/metrics"
+	"packster/internal/utils"
+	"packster/pkg/types"
 	"strings"
 	"testing"
 
@@ -20,13 +20,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newUploadRequest(t *testing.T, product, version, filename, content string) *http.Request {
+func newUploadRequest(t *testing.T, product, group, version, filename, content string) *http.Request {
 	t.Helper()
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
 	if product != "" {
 		require.NoError(t, writer.WriteField("product", product))
+	}
+	if group != "" {
+		require.NoError(t, writer.WriteField("group_name", group))
 	}
 	if version != "" {
 		require.NoError(t, writer.WriteField("version", version))
@@ -57,9 +60,10 @@ func TestHandleUpload(t *testing.T) {
 	boolPtr := func(b bool) *bool { return &b }
 
 	tests := []struct {
-		name         string
-		product      string
-		version      string
+		name          string
+		product       string
+		group         string
+		version       string
 		filename      string
 		content       string
 		admin         *bool
@@ -105,7 +109,7 @@ func TestHandleUpload(t *testing.T) {
 			filename: "artifact.zip",
 			content:  "data",
 			setupMock: func(repo *mockProductRepo) {
-				repo.On("FetchProduct", "myproduct").Return(nil, errors.New("db error"))
+				repo.On("FetchProduct", "myproduct", "").Return(nil, errors.New("db error"))
 			},
 			wantStatus: http.StatusBadRequest,
 			wantBody:   "db error",
@@ -117,7 +121,7 @@ func TestHandleUpload(t *testing.T) {
 			filename: "artifact.zip",
 			content:  "data",
 			setupMock: func(repo *mockProductRepo) {
-				repo.On("FetchProduct", "myproduct").Return(nil, nil)
+				repo.On("FetchProduct", "myproduct", "").Return(nil, nil)
 			},
 			wantStatus: http.StatusBadRequest,
 			wantBody:   "Product not found",
@@ -131,7 +135,7 @@ func TestHandleUpload(t *testing.T) {
 			admin:    boolPtr(false),
 			token:    "mytoken",
 			setupMock: func(repo *mockProductRepo) {
-				repo.On("FetchProduct", "myproduct").Return(
+				repo.On("FetchProduct", "myproduct", "").Return(
 					productWithToken("mytoken", types.TokenPermissions{Upload: false}), nil,
 				)
 			},
@@ -148,10 +152,10 @@ func TestHandleUpload(t *testing.T) {
 			token:        "mytoken",
 			needsTempDir: true,
 			setupMock: func(repo *mockProductRepo) {
-				repo.On("FetchProduct", "myproduct").Return(
+				repo.On("FetchProduct", "myproduct", "").Return(
 					productWithToken("mytoken", types.TokenPermissions{Upload: false}), nil,
 				)
-				repo.On("AddVersion", "myproduct", "1.0.0", "mytoken", true, mock.Anything).Return(nil)
+				repo.On("AddVersion", "myproduct", "", "1.0.0", "mytoken", true, mock.Anything).Return(nil)
 			},
 			wantStatus: http.StatusCreated,
 		},
@@ -166,7 +170,7 @@ func TestHandleUpload(t *testing.T) {
 			setupMock: func(repo *mockProductRepo) {
 				p := productWithToken("mytoken", types.TokenPermissions{Upload: true})
 				p.Versions["1.0.0"] = types.Version{Path: "/some/path", Checksum: "abc"}
-				repo.On("FetchProduct", "myproduct").Return(p, nil)
+				repo.On("FetchProduct", "myproduct", "").Return(p, nil)
 			},
 			wantStatus: http.StatusForbidden,
 			wantBody:   "already uploaded",
@@ -181,10 +185,10 @@ func TestHandleUpload(t *testing.T) {
 			token:        "mytoken",
 			needsTempDir: true,
 			setupMock: func(repo *mockProductRepo) {
-				repo.On("FetchProduct", "myproduct").Return(
+				repo.On("FetchProduct", "myproduct", "").Return(
 					productWithToken("mytoken", types.TokenPermissions{Upload: true}), nil,
 				)
-				repo.On("AddVersion", "myproduct", "1.0.0", "mytoken", true, mock.Anything).
+				repo.On("AddVersion", "myproduct", "", "1.0.0", "mytoken", true, mock.Anything).
 					Return(errors.New("db error"))
 			},
 			wantStatus: http.StatusBadRequest,
@@ -212,10 +216,28 @@ func TestHandleUpload(t *testing.T) {
 			token:        "mytoken",
 			needsTempDir: true,
 			setupMock: func(repo *mockProductRepo) {
-				repo.On("FetchProduct", "myproduct").Return(
+				repo.On("FetchProduct", "myproduct", "").Return(
 					productWithToken("mytoken", types.TokenPermissions{Upload: true}), nil,
 				)
-				repo.On("AddVersion", "myproduct", "1.0.0", "mytoken", true, mock.Anything).Return(nil)
+				repo.On("AddVersion", "myproduct", "", "1.0.0", "mytoken", true, mock.Anything).Return(nil)
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name:         "WithGroup",
+			product:      "myproduct",
+			group:        "staging",
+			version:      "1.0.0",
+			filename:     "artifact.zip",
+			content:      "data",
+			admin:        boolPtr(true),
+			token:        "mytoken",
+			needsTempDir: true,
+			setupMock: func(repo *mockProductRepo) {
+				repo.On("FetchProduct", "myproduct", "staging").Return(
+					productWithToken("mytoken", types.TokenPermissions{Upload: true}), nil,
+				)
+				repo.On("AddVersion", "myproduct", "staging", "1.0.0", "mytoken", true, mock.Anything).Return(nil)
 			},
 			wantStatus: http.StatusCreated,
 		},
@@ -234,7 +256,7 @@ func TestHandleUpload(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
-			c.Request = newUploadRequest(t, tt.product, tt.version, tt.filename, tt.content)
+			c.Request = newUploadRequest(t, tt.product, tt.group, tt.version, tt.filename, tt.content)
 			if tt.admin != nil {
 				c.Set("admin", *tt.admin)
 			}
@@ -268,12 +290,12 @@ func setupUploadMetricsTest(t *testing.T) (*gin.Context, *mockProductRepo) {
 
 	gin.SetMode(gin.TestMode)
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	c.Request = newUploadRequest(t, "myproduct", "1.0.0", "artifact.zip", "data")
+	c.Request = newUploadRequest(t, "myproduct", "", "1.0.0", "artifact.zip", "data")
 	c.Set("admin", true)
 	c.Set("token", "mytoken")
 
 	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(
+	repo.On("FetchProduct", "myproduct", "").Return(
 		productWithToken("mytoken", types.TokenPermissions{Upload: true}), nil,
 	)
 	return c, repo
@@ -281,7 +303,7 @@ func setupUploadMetricsTest(t *testing.T) (*gin.Context, *mockProductRepo) {
 
 func TestHandleUpload_SuccessIncrementsMetrics(t *testing.T) {
 	c, repo := setupUploadMetricsTest(t)
-	repo.On("AddVersion", "myproduct", "1.0.0", "mytoken", true, mock.Anything).Return(nil)
+	repo.On("AddVersion", "myproduct", "", "1.0.0", "mytoken", true, mock.Anything).Return(nil)
 
 	beforeSuccess := testutil.ToFloat64(metrics.ArtifactUploadsTotal.WithLabelValues("myproduct", "success"))
 	beforeBytes := testutil.ToFloat64(metrics.ArtifactUploadBytesTotal.WithLabelValues("myproduct"))
@@ -295,7 +317,7 @@ func TestHandleUpload_SuccessIncrementsMetrics(t *testing.T) {
 
 func TestHandleUpload_ErrorIncrementsMetrics(t *testing.T) {
 	c, repo := setupUploadMetricsTest(t)
-	repo.On("AddVersion", "myproduct", "1.0.0", "mytoken", true, mock.Anything).Return(errors.New("db error"))
+	repo.On("AddVersion", "myproduct", "", "1.0.0", "mytoken", true, mock.Anything).Return(errors.New("db error"))
 
 	before := testutil.ToFloat64(metrics.ArtifactUploadsTotal.WithLabelValues("myproduct", "error"))
 

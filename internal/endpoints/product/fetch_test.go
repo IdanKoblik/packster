@@ -20,7 +20,7 @@ func TestHandleFetch_RepoError(t *testing.T) {
 	c.Params = gin.Params{{Key: "product", Value: "myproduct"}}
 
 	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(nil, errors.New("db error"))
+	repo.On("FetchProduct", "myproduct", "").Return(nil, errors.New("db error"))
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleFetch(c)
@@ -38,7 +38,7 @@ func TestHandleFetch_NotFound(t *testing.T) {
 	c.Params = gin.Params{{Key: "product", Value: "myproduct"}}
 
 	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(nil, nil)
+	repo.On("FetchProduct", "myproduct", "").Return(nil, nil)
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleFetch(c)
@@ -62,7 +62,7 @@ func TestHandleFetch_PermissionDenied(t *testing.T) {
 		Versions: map[string]types.Version{},
 	}
 	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(expected, nil)
+	repo.On("FetchProduct", "myproduct", "").Return(expected, nil)
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleFetch(c)
@@ -82,7 +82,7 @@ func TestHandleFetch_Success(t *testing.T) {
 
 	expected := productWithToken("mytoken", types.TokenPermissions{Download: true})
 	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(expected, nil)
+	repo.On("FetchProduct", "myproduct", "").Return(expected, nil)
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleFetch(c)
@@ -104,11 +104,33 @@ func TestHandleFetch_AdminBypass(t *testing.T) {
 
 	expected := &types.Product{Name: "myproduct", Tokens: map[string]types.TokenPermissions{}, Versions: map[string]types.Version{}}
 	repo := &mockProductRepo{}
-	repo.On("FetchProduct", "myproduct").Return(expected, nil)
+	repo.On("FetchProduct", "myproduct", "").Return(expected, nil)
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleFetch(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+	repo.AssertExpectations(t)
+}
+
+func TestHandleFetch_WithGroup(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/products/myproduct?group=mygroup", nil)
+	c.Params = gin.Params{{Key: "product", Value: "myproduct"}}
+	c.Set("token", "mytoken")
+	c.Set("admin", false)
+
+	expected := productWithToken("mytoken", types.TokenPermissions{Download: true})
+	expected.GroupName = "mygroup"
+	repo := &mockProductRepo{}
+	repo.On("FetchProduct", "myproduct", "mygroup").Return(expected, nil)
+
+	handler := &ProductHandler{Repo: repo}
+	handler.HandleFetch(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "mygroup")
 	repo.AssertExpectations(t)
 }

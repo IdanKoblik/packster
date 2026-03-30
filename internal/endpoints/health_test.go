@@ -1,10 +1,10 @@
 package endpoints
 
 import (
-	"packster/internal/helpers"
-	"packster/internal/repository"
 	"net/http"
 	"net/http/httptest"
+	"packster/internal/helpers"
+	"packster/internal/repository"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -20,10 +20,10 @@ func TestHandleHealth_Success(t *testing.T) {
 	repo, cleanup := helpers.SetupRepo(t)
 	defer cleanup()
 
-	HandleHealth(c, repo.MongoClient, repo.RedisClient)
+	HandleHealth(c, repo.DB, repo.RedisClient)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "mongo")
+	assert.Contains(t, w.Body.String(), "mysql")
 	assert.Contains(t, w.Body.String(), "redis")
 }
 
@@ -34,13 +34,13 @@ func TestHandleHealth_Failure(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodGet, "/health", nil)
 
 	repo := repository.AuthRepository{
-		MongoClient: nil,
+		DB:          nil,
 		RedisClient: nil,
 	}
 
-	HandleHealth(c, repo.MongoClient, repo.RedisClient)
+	HandleHealth(c, repo.DB, repo.RedisClient)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Contains(t, w.Body.String(), "Missing mongo client")
+	assert.Contains(t, w.Body.String(), "Missing mysql client")
 	assert.Contains(t, w.Body.String(), "Missing redis client")
 }

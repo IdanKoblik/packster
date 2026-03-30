@@ -1,9 +1,9 @@
 package product
 
 import (
+	"net/http"
 	"packster/internal/utils"
 	"packster/pkg/types"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -54,9 +54,10 @@ func (h *ProductHandler) HandleCreate(c *gin.Context) {
 	}
 
 	err = h.Repo.CreateProduct(&types.Product{
-		Name:     request.Name,
-		Tokens:   tokens,
-		Versions: map[string]types.Version{},
+		Name:      request.Name,
+		GroupName: request.GroupName,
+		Tokens:    tokens,
+		Versions:  map[string]types.Version{},
 	})
 
 	if err != nil {

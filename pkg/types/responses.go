@@ -1,6 +1,6 @@
 package types
 
 type HealthResponse struct {
-	MongoStatus string `json:"mongo"`
+	MySQLStatus string `json:"mysql"`
 	RedisStatus string `json:"redis"`
 }

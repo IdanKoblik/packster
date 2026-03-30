@@ -1,8 +1,8 @@
 package product
 
 import (
-	"packster/internal/utils"
 	"net/http"
+	"packster/internal/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,7 +12,8 @@ import (
 // @Description  Returns full product metadata including tokens and versions. Requires token access or admin privileges.
 // @Tags         products
 // @Produce      json
-// @Param        product  path  string  true  "Product name"
+// @Param        product  path   string  true  "Product name"
+// @Param        group    query  string  false "Product group (default: empty)"
 // @Success      200  {object}  types.Product  "Product metadata"
 // @Failure      400  {string}  string  "Missing product name"
 // @Failure      403  {string}  string  "Permission denied"
@@ -27,7 +28,9 @@ func (h *ProductHandler) HandleFetch(c *gin.Context) {
 		return
 	}
 
-	product, err := h.Repo.FetchProduct(productName)
+	group := c.Query("group")
+
+	product, err := h.Repo.FetchProduct(productName, group)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -48,7 +51,8 @@ func (h *ProductHandler) HandleFetch(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"name":     product.Name,
-		"versions": product.Versions,
+		"name":       product.Name,
+		"group_name": product.GroupName,
+		"versions":   product.Versions,
 	})
 }

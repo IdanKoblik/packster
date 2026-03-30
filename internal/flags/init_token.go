@@ -1,13 +1,11 @@
 package flags
 
 import (
+	"context"
 	"packster/internal/logging"
 	"packster/internal/repository"
 	"packster/pkg/flags"
 	"packster/pkg/types"
-	"context"
-
-	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func InitToken(repo *repository.AuthRepository) flags.Flag {
@@ -45,9 +43,9 @@ func InitToken(repo *repository.AuthRepository) flags.Flag {
 }
 
 func adminTokenExists(r *repository.AuthRepository) (bool, error) {
-	filter := bson.M{"admin": true}
-
-	count, err := r.MongoDatabase.Collection(r.Cfg.Mongo.TokenCollection).CountDocuments(context.Background(), filter)
+	var count int
+	err := r.DB.QueryRowContext(context.Background(),
+		"SELECT COUNT(*) FROM principals WHERE admin = TRUE AND type = 'token'").Scan(&count)
 	if err != nil {
 		return false, err
 	}

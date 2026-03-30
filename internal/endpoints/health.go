@@ -1,35 +1,35 @@
 package endpoints
 
 import (
-	internalmongo "packster/internal/mongo"
+	"database/sql"
+	"net/http"
+	internalmysql "packster/internal/mysql"
 	internalredis "packster/internal/redis"
 	responses "packster/pkg/types"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 // HandleHealth godoc
 // @Summary      Health check
-// @Description  Returns the health status of MongoDB and Redis connections.
+// @Description  Returns the health status of MySQL and Redis connections.
 // @Tags         system
 // @Produce      json
 // @Success      200  {object}  types.HealthResponse  "All services healthy"
 // @Failure      500  {object}  types.HealthResponse  "One or more services unhealthy"
 // @Security     ApiKeyAuth
 // @Router       /health [get]
-func HandleHealth(c *gin.Context, mongo *mongo.Client, redis *redis.Client) {
+func HandleHealth(c *gin.Context, db *sql.DB, redis *redis.Client) {
 	response := responses.HealthResponse{
-		MongoStatus: "Mongo is fine",
+		MySQLStatus: "MySQL is fine",
 		RedisStatus: "Redis is fine",
 	}
 
 	status := http.StatusOK
-	err := internalmongo.CheckHealth(mongo)
+	err := internalmysql.CheckHealth(db)
 	if err != nil {
-		response.MongoStatus = err.Error()
+		response.MySQLStatus = err.Error()
 		status = http.StatusInternalServerError
 	}
 

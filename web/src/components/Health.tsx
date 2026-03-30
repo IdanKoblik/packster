@@ -14,7 +14,7 @@ export default function Health({ token }: Props) {
     try {
       setStatus(await fetchHealth(token))
     } catch {
-      setStatus({ mongo: 'unreachable', redis: 'unreachable' })
+      setStatus({ mysql: 'unreachable', redis: 'unreachable' })
     } finally {
       setLoading(false)
     }
@@ -26,8 +26,8 @@ export default function Health({ token }: Props) {
 
   const services: { label: string; value: string }[] = status
     ? [
-        { label: 'MongoDB', value: status.mongo },
-        { label: 'Redis',   value: status.redis  },
+        { label: 'MySQL', value: status.mysql },
+        { label: 'Redis', value: status.redis },
       ]
     : []
 

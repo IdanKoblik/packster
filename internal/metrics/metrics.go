@@ -24,7 +24,7 @@ var (
 
 	AuthCacheMisses = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "packster_auth_cache_misses_total",
-		Help: "Total auth token lookups that fell through to MongoDB",
+		Help: "Total auth token lookups that fell through to MySQL",
 	})
 
 	AuthFailures = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -47,9 +47,9 @@ var (
 		Help: "Total bytes uploaded by product",
 	}, []string{"product"})
 
-	MongoUp = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "packster_mongo_up",
-		Help: "MongoDB availability (1 = up, 0 = down)",
+	MySQLUp = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "packster_mysql_up",
+		Help: "MySQL availability (1 = up, 0 = down)",
 	})
 
 	RedisUp = promauto.NewGauge(prometheus.GaugeOpts{

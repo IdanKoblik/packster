@@ -51,7 +51,7 @@ func TestHandleModify_DeleteVersion_RepoError(t *testing.T) {
 	c.Set("token", "mytoken")
 
 	repo := &mockProductRepo{}
-	repo.On("DeleteVersion", "myproduct", "1.0.0", "mytoken", false).Return(errors.New("delete error"))
+	repo.On("DeleteVersion", "myproduct", "", "1.0.0", "mytoken", false).Return(errors.New("delete error"))
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleModify(c)
@@ -71,7 +71,7 @@ func TestHandleModify_DeleteVersion_Success(t *testing.T) {
 	c.Set("token", "mytoken")
 
 	repo := &mockProductRepo{}
-	repo.On("DeleteVersion", "myproduct", "1.0.0", "mytoken", false).Return(nil)
+	repo.On("DeleteVersion", "myproduct", "", "1.0.0", "mytoken", false).Return(nil)
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleModify(c)
@@ -104,7 +104,7 @@ func TestHandleModify_DeleteToken_RepoError(t *testing.T) {
 	c.Set("admin", false)
 
 	repo := &mockProductRepo{}
-	repo.On("DeleteToken", "myproduct", "mytoken", "target-token", false).Return(errors.New("delete token error"))
+	repo.On("DeleteToken", "myproduct", "", "mytoken", "target-token", false).Return(errors.New("delete token error"))
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleModify(c)
@@ -125,7 +125,7 @@ func TestHandleModify_DeleteToken_Success(t *testing.T) {
 	c.Set("admin", true)
 
 	repo := &mockProductRepo{}
-	repo.On("DeleteToken", "myproduct", "mytoken", "target-token", true).Return(nil)
+	repo.On("DeleteToken", "myproduct", "", "mytoken", "target-token", true).Return(nil)
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleModify(c)
@@ -159,7 +159,7 @@ func TestHandleModify_AddToken_RepoError(t *testing.T) {
 	c.Set("admin", true)
 
 	repo := &mockProductRepo{}
-	repo.On("AddToken", "myproduct", "mytoken", "new-token", perms, true).Return(errors.New("add token error"))
+	repo.On("AddToken", "myproduct", "", "mytoken", "new-token", perms, true).Return(errors.New("add token error"))
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleModify(c)
@@ -181,7 +181,67 @@ func TestHandleModify_AddToken_Success(t *testing.T) {
 	c.Set("admin", true)
 
 	repo := &mockProductRepo{}
-	repo.On("AddToken", "myproduct", "mytoken", "new-token", perms, true).Return(nil)
+	repo.On("AddToken", "myproduct", "", "mytoken", "new-token", perms, true).Return(nil)
+
+	handler := &ProductHandler{Repo: repo}
+	handler.HandleModify(c)
+
+	assert.Equal(t, http.StatusCreated, c.Writer.Status())
+	repo.AssertExpectations(t)
+}
+
+func TestHandleModify_WithGroup_DeleteVersion(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	body, _ := json.Marshal(types.DeleteVersionRequest{Product: "myproduct", GroupName: "staging", Version: "1.0.0"})
+	c.Request = httptest.NewRequest(http.MethodPost, "/products/modify/deleteVersion", bytes.NewReader(body))
+	c.Params = gin.Params{{Key: "action", Value: "deleteVersion"}}
+	c.Set("token", "mytoken")
+
+	repo := &mockProductRepo{}
+	repo.On("DeleteVersion", "myproduct", "staging", "1.0.0", "mytoken", false).Return(nil)
+
+	handler := &ProductHandler{Repo: repo}
+	handler.HandleModify(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	repo.AssertExpectations(t)
+}
+
+func TestHandleModify_WithGroup_DeleteToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	body, _ := json.Marshal(types.DeleteProductTokenRequest{Product: "myproduct", GroupName: "staging", Token: "target-token"})
+	c.Request = httptest.NewRequest(http.MethodPost, "/products/modify/deleteToken", bytes.NewReader(body))
+	c.Params = gin.Params{{Key: "action", Value: "deleteToken"}}
+	c.Set("token", "mytoken")
+	c.Set("admin", true)
+
+	repo := &mockProductRepo{}
+	repo.On("DeleteToken", "myproduct", "staging", "mytoken", "target-token", true).Return(nil)
+
+	handler := &ProductHandler{Repo: repo}
+	handler.HandleModify(c)
+
+	assert.Equal(t, http.StatusNoContent, c.Writer.Status())
+	repo.AssertExpectations(t)
+}
+
+func TestHandleModify_WithGroup_AddToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	perms := types.TokenPermissions{Download: true}
+	body, _ := json.Marshal(types.AddProductTokenRequest{Product: "myproduct", GroupName: "staging", Token: "new-token", Permissions: perms})
+	c.Request = httptest.NewRequest(http.MethodPut, "/products/modify/addToken", bytes.NewReader(body))
+	c.Params = gin.Params{{Key: "action", Value: "addToken"}}
+	c.Set("token", "mytoken")
+	c.Set("admin", true)
+
+	repo := &mockProductRepo{}
+	repo.On("AddToken", "myproduct", "staging", "mytoken", "new-token", perms, true).Return(nil)
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleModify(c)

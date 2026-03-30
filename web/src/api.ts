@@ -27,12 +27,13 @@ export interface Version {
 
 export interface Product {
   name: string
+  group_name: string
   tokens: Record<string, TokenPermissions>
   versions: Record<string, Version>
 }
 
 export interface HealthStatus {
-  mongo: string
+  mysql: string
   redis: string
 }
 
@@ -71,31 +72,33 @@ export async function revokeToken(token: string, targetToken: string): Promise<v
   if (!res.ok) throw new Error(await extractError(res))
 }
 
-export async function listProducts(token: string): Promise<string[]> {
+export async function listProducts(token: string): Promise<Product[]> {
   const res = await fetch('/api/product/list', { headers: apiHeaders(token) })
   if (!res.ok) throw new Error(await extractError(res))
   return res.json()
 }
 
-export async function fetchProduct(token: string, name: string): Promise<Product> {
-  const res = await fetch(`/api/product/fetch/${encodeURIComponent(name)}`, {
+export async function fetchProduct(token: string, name: string, group: string): Promise<Product> {
+  const params = group ? `?group=${encodeURIComponent(group)}` : ''
+  const res = await fetch(`/api/product/fetch/${encodeURIComponent(name)}${params}`, {
     headers: apiHeaders(token),
   })
   if (!res.ok) throw new Error(await extractError(res))
   return res.json()
 }
 
-export async function createProduct(token: string, name: string): Promise<void> {
+export async function createProduct(token: string, name: string, group: string): Promise<void> {
   const res = await fetch('/api/product/create', {
     method: 'PUT',
     headers: apiHeaders(token),
-    body: JSON.stringify({ name, tokens: {} }),
+    body: JSON.stringify({ name, group_name: group, tokens: {} }),
   })
   if (!res.ok) throw new Error(await extractError(res))
 }
 
-export async function deleteProduct(token: string, name: string): Promise<void> {
-  const res = await fetch(`/api/product/delete/${encodeURIComponent(name)}`, {
+export async function deleteProduct(token: string, name: string, group: string): Promise<void> {
+  const params = group ? `?group=${encodeURIComponent(group)}` : ''
+  const res = await fetch(`/api/product/delete/${encodeURIComponent(name)}${params}`, {
     method: 'DELETE',
     headers: apiHeaders(token),
   })
@@ -105,10 +108,12 @@ export async function deleteProduct(token: string, name: string): Promise<void> 
 export async function downloadVersion(
   token: string,
   product: string,
+  group: string,
   version: string,
 ): Promise<void> {
+  const params = group ? `?group=${encodeURIComponent(group)}` : ''
   const res = await fetch(
-    `/api/product/download/${encodeURIComponent(product)}/${encodeURIComponent(version)}`,
+    `/api/product/download/${encodeURIComponent(product)}/${encodeURIComponent(version)}${params}`,
     { headers: { 'X-Api-Token': token } },
   )
   if (!res.ok) throw new Error(await extractError(res))
@@ -133,11 +138,13 @@ export async function downloadVersion(
 export async function uploadVersion(
   token: string,
   product: string,
+  group: string,
   version: string,
   file: File,
 ): Promise<void> {
   const form = new FormData()
   form.append('product', product)
+  if (group) form.append('group_name', group)
   form.append('version', version)
   form.append('file', file)
   // Do not set Content-Type — fetch sets it with the multipart boundary automatically
@@ -152,10 +159,12 @@ export async function uploadVersion(
 export async function deleteVersion(
   token: string,
   product: string,
+  group: string,
   version: string,
 ): Promise<void> {
+  const params = group ? `?group=${encodeURIComponent(group)}` : ''
   const res = await fetch(
-    `/api/product/delete/${encodeURIComponent(product)}/${encodeURIComponent(version)}`,
+    `/api/product/delete/${encodeURIComponent(product)}/${encodeURIComponent(version)}${params}`,
     { method: 'DELETE', headers: apiHeaders(token) },
   )
   if (!res.ok) throw new Error(await extractError(res))
@@ -164,7 +173,7 @@ export async function deleteVersion(
 export async function fetchHealth(token: string): Promise<HealthStatus> {
   const res = await fetch('/api/health', { headers: apiHeaders(token) })
   const data: HealthStatus = await res.json().catch(() => ({
-    mongo: 'unreachable',
+    mysql: 'unreachable',
     redis: 'unreachable',
   }))
   return data

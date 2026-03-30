@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"packster/pkg/types"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -36,9 +38,9 @@ func TestHandleListProducts_Admin_Success(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodGet, "/product/list", nil)
 	c.Set("admin", true)
 
-	names := []string{"productA", "productB"}
+	products := []types.Product{{Name: "productA"}, {Name: "productB"}}
 	repo := &mockProductRepo{}
-	repo.On("ListProducts").Return(names, nil)
+	repo.On("ListProducts").Return(products, nil)
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleListProducts(c)
@@ -57,10 +59,10 @@ func TestHandleListProducts_NonAdmin_Success(t *testing.T) {
 	c.Set("admin", false)
 	c.Set("token", "mytoken")
 
-	names := []string{"productA"}
+	products := []types.Product{{Name: "productA"}}
 	repo := &mockProductRepo{}
 	repo.On("ListProductsByToken", mock.AnythingOfType("string")).
-		Return(names, nil)
+		Return(products, nil)
 
 	handler := &ProductHandler{Repo: repo}
 	handler.HandleListProducts(c)

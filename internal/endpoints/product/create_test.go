@@ -91,3 +91,47 @@ func TestHandleCreate_Success(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, c.Writer.Status())
 	repo.AssertExpectations(t)
 }
+
+func TestHandleCreate_WithGroup(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	body, _ := json.Marshal(types.CreateProductRequest{Name: "myproduct", GroupName: "staging"})
+	c.Request = httptest.NewRequest(http.MethodPost, "/products", bytes.NewReader(body))
+	c.Set("token", "mytoken")
+
+	repo := &mockProductRepo{}
+	repo.On("CreateProduct", mock.MatchedBy(func(p *types.Product) bool {
+		return p.Name == "myproduct" && p.GroupName == "staging"
+	})).Return(nil)
+
+	handler := &ProductHandler{Repo: repo}
+	handler.HandleCreate(c)
+
+	assert.Equal(t, http.StatusCreated, c.Writer.Status())
+	repo.AssertExpectations(t)
+}
+
+func TestHandleCreate_SameNameDifferentGroups(t *testing.T) {
+	for _, group := range []string{"staging", "production"} {
+		t.Run(group, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			body, _ := json.Marshal(types.CreateProductRequest{Name: "myproduct", GroupName: group})
+			c.Request = httptest.NewRequest(http.MethodPost, "/products", bytes.NewReader(body))
+			c.Set("token", "mytoken")
+
+			repo := &mockProductRepo{}
+			repo.On("CreateProduct", mock.MatchedBy(func(p *types.Product) bool {
+				return p.Name == "myproduct" && p.GroupName == group
+			})).Return(nil)
+
+			handler := &ProductHandler{Repo: repo}
+			handler.HandleCreate(c)
+
+			assert.Equal(t, http.StatusCreated, c.Writer.Status())
+			repo.AssertExpectations(t)
+		})
+	}
+}

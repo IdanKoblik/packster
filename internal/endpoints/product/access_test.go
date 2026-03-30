@@ -44,7 +44,7 @@ func TestHandleAccess_NoProducts(t *testing.T) {
 	w, c := newAccessContext("mytoken")
 
 	repo := &mockProductRepo{}
-	repo.On("ListProducts").Return([]string{}, nil)
+	repo.On("ListProducts").Return([]types.Product{}, nil)
 
 	runAccess(c, repo)
 
@@ -60,8 +60,8 @@ func TestHandleAccess_TokenHasAccess(t *testing.T) {
 	product.Name = "productA"
 
 	repo := &mockProductRepo{}
-	repo.On("ListProducts").Return([]string{"productA"}, nil)
-	repo.On("FetchProduct", "productA").Return(product, nil)
+	repo.On("ListProducts").Return([]types.Product{{Name: "productA", GroupName: ""}}, nil)
+	repo.On("FetchProduct", "productA", "").Return(product, nil)
 
 	runAccess(c, repo)
 
@@ -77,8 +77,8 @@ func TestHandleAccess_TokenNoAccess(t *testing.T) {
 	product.Name = "productA"
 
 	repo := &mockProductRepo{}
-	repo.On("ListProducts").Return([]string{"productA"}, nil)
-	repo.On("FetchProduct", "productA").Return(product, nil)
+	repo.On("ListProducts").Return([]types.Product{{Name: "productA", GroupName: ""}}, nil)
+	repo.On("FetchProduct", "productA", "").Return(product, nil)
 
 	runAccess(c, repo)
 
@@ -100,9 +100,12 @@ func TestHandleAccess_PartialAccess(t *testing.T) {
 	}
 
 	repo := &mockProductRepo{}
-	repo.On("ListProducts").Return([]string{"productA", "productB"}, nil)
-	repo.On("FetchProduct", "productA").Return(productA, nil)
-	repo.On("FetchProduct", "productB").Return(productB, nil)
+	repo.On("ListProducts").Return([]types.Product{
+		{Name: "productA", GroupName: ""},
+		{Name: "productB", GroupName: ""},
+	}, nil)
+	repo.On("FetchProduct", "productA", "").Return(productA, nil)
+	repo.On("FetchProduct", "productB", "").Return(productB, nil)
 
 	runAccess(c, repo)
 
@@ -119,14 +122,47 @@ func TestHandleAccess_FetchProductError_Skipped(t *testing.T) {
 	productB.Name = "productB"
 
 	repo := &mockProductRepo{}
-	repo.On("ListProducts").Return([]string{"productA", "productB"}, nil)
-	repo.On("FetchProduct", "productA").Return(nil, errors.New("db error"))
-	repo.On("FetchProduct", "productB").Return(productB, nil)
+	repo.On("ListProducts").Return([]types.Product{
+		{Name: "productA", GroupName: ""},
+		{Name: "productB", GroupName: ""},
+	}, nil)
+	repo.On("FetchProduct", "productA", "").Return(nil, errors.New("db error"))
+	repo.On("FetchProduct", "productB", "").Return(productB, nil)
 
 	runAccess(c, repo)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.NotContains(t, w.Body.String(), "productA")
 	assert.Contains(t, w.Body.String(), "productB")
+	repo.AssertExpectations(t)
+}
+
+func TestHandleAccess_GroupedProducts(t *testing.T) {
+	w, c := newAccessContext("mytoken")
+
+	productStaging := productWithToken("mytoken", types.TokenPermissions{Download: true})
+	productStaging.Name = "myapp"
+	productStaging.GroupName = "staging"
+
+	productProd := &types.Product{
+		Name:      "myapp",
+		GroupName: "production",
+		Tokens:    map[string]types.TokenPermissions{},
+		Versions:  map[string]types.Version{},
+	}
+
+	repo := &mockProductRepo{}
+	repo.On("ListProducts").Return([]types.Product{
+		{Name: "myapp", GroupName: "staging"},
+		{Name: "myapp", GroupName: "production"},
+	}, nil)
+	repo.On("FetchProduct", "myapp", "staging").Return(productStaging, nil)
+	repo.On("FetchProduct", "myapp", "production").Return(productProd, nil)
+
+	runAccess(c, repo)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "staging")
+	assert.NotContains(t, w.Body.String(), "production")
 	repo.AssertExpectations(t)
 }

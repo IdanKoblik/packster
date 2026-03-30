@@ -1,19 +1,17 @@
 package repository
 
 import (
+	"context"
+	"database/sql"
+	"errors"
 	"packster/internal/metrics"
 	"packster/internal/utils"
-	"packster/pkg/types"
-	"context"
-	"errors"
-	"time"
-
 	"packster/pkg/config"
+	"packster/pkg/types"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type IAuthRepo interface {
@@ -26,24 +24,22 @@ type IAuthRepo interface {
 }
 
 type AuthRepository struct {
-	RedisClient   *redis.Client
-	MongoClient   *mongo.Client
-	MongoDatabase *mongo.Database
-	Cfg           *config.Config
-	CacheTTL      time.Duration
+	RedisClient *redis.Client
+	DB          *sql.DB
+	Cfg         *config.Config
+	CacheTTL    time.Duration
 }
 
 const (
 	REDIS_TOKEN_PREFIX = "token:"
 )
 
-func NewAuthRepository(redisClient *redis.Client, mongoClient *mongo.Client, cfg *config.Config) *AuthRepository {
+func NewAuthRepository(redisClient *redis.Client, db *sql.DB, cfg *config.Config) *AuthRepository {
 	return &AuthRepository{
-		RedisClient:   redisClient,
-		MongoClient:   mongoClient,
-		MongoDatabase: mongoClient.Database(cfg.Mongo.Database),
-		Cfg:           cfg,
-		CacheTTL:      5 * time.Minute,
+		RedisClient: redisClient,
+		DB:          db,
+		Cfg:         cfg,
+		CacheTTL:    5 * time.Minute,
 	}
 }
 
@@ -82,19 +78,27 @@ func (r *TestableAuthRepository) FetchToken(rawToken string) (*types.ApiToken, e
 }
 
 func (r *AuthRepository) CreateToken(request *types.RegisterRequest) (string, error) {
-	collection := r.MongoDatabase.Collection(r.Cfg.Mongo.TokenCollection)
+	token := uuid.NewString()
+	hashedToken := utils.Hash(token)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	token := uuid.NewString()
-	hashedToken := utils.Hash(token)
-	apiToken := types.ApiToken{
-		Token: hashedToken,
-		Admin: request.Admin,
+	result, err := r.DB.ExecContext(ctx,
+		"INSERT INTO principals (type, admin) VALUES ('token', ?)",
+		request.Admin)
+	if err != nil {
+		return "", err
 	}
 
-	_, err := collection.InsertOne(ctx, apiToken)
+	principalID, err := result.LastInsertId()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = r.DB.ExecContext(ctx,
+		"INSERT INTO api_tokens (id, token_hash) VALUES (?, ?)",
+		principalID, hashedToken)
 	if err != nil {
 		return "", err
 	}
@@ -130,34 +134,36 @@ func (r *AuthRepository) PruneToken(rawToken string) error {
 	}
 
 	r.RedisClient.Del(context.Background(), r.getCacheKey(hashedToken))
-	collection := r.MongoDatabase.Collection(r.Cfg.Mongo.TokenCollection)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = collection.DeleteOne(ctx, bson.M{"_id": utils.Hash(rawToken)})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	_, err = r.DB.ExecContext(ctx,
+		`DELETE p FROM principals p
+		 JOIN api_tokens at ON p.id = at.id
+		 WHERE at.token_hash = ?`,
+		hashedToken)
+	return err
 }
 
 func (r *AuthRepository) ListTokens() ([]types.ApiToken, error) {
-	collection := r.MongoDatabase.Collection(r.Cfg.Mongo.TokenCollection)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cursor, err := collection.Find(ctx, bson.M{})
+	rows, err := r.DB.QueryContext(ctx,
+		"SELECT at.token_hash, p.admin FROM api_tokens at JOIN principals p ON at.id = p.id")
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(context.Background())
+	defer rows.Close()
 
 	var tokens []types.ApiToken
-	if err := cursor.All(context.Background(), &tokens); err != nil {
-		return nil, err
+	for rows.Next() {
+		var t types.ApiToken
+		if err := rows.Scan(&t.Token, &t.Admin); err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, t)
 	}
 
 	return tokens, nil
@@ -175,13 +181,16 @@ func (r *AuthRepository) FetchToken(rawToken string) (*types.ApiToken, error) {
 		metrics.AuthCacheMisses.Inc()
 	}
 
-	collection := r.MongoDatabase.Collection(r.Cfg.Mongo.TokenCollection)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var apiToken types.ApiToken
-	err = collection.FindOne(ctx, bson.M{"_id": utils.Hash(rawToken)}).Decode(&apiToken)
+	err = r.DB.QueryRowContext(ctx,
+		`SELECT at.token_hash, p.admin
+		 FROM api_tokens at
+		 JOIN principals p ON at.id = p.id
+		 WHERE at.token_hash = ?`,
+		hashedToken).Scan(&apiToken.Token, &apiToken.Admin)
 	if err != nil {
 		return nil, err
 	}

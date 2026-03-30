@@ -1,9 +1,9 @@
 package product
 
 import (
-	"packster/internal/utils"
 	"net/http"
 	"os"
+	"packster/internal/utils"
 	"path/filepath"
 	"strings"
 
@@ -14,8 +14,9 @@ import (
 // @Summary      Delete a version artifact
 // @Description  Removes the artifact file and version metadata for the specified product version. Requires Delete permission.
 // @Tags         versions
-// @Param        product  path  string  true  "Product name"
-// @Param        version  path  string  true  "Version identifier"
+// @Param        product  path   string  true  "Product name"
+// @Param        version  path   string  true  "Version identifier"
+// @Param        group    query  string  false "Product group (default: empty)"
 // @Success      204  "Version deleted"
 // @Failure      400  {string}  string  "Product or version not found"
 // @Failure      403  {string}  string  "Permission denied"
@@ -35,7 +36,9 @@ func (h *ProductHandler) HandleDeleteVersion(c *gin.Context) {
 		return
 	}
 
-	product, err := h.Repo.FetchProduct(productName)
+	group := c.Query("group")
+
+	product, err := h.Repo.FetchProduct(productName, group)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -81,7 +84,7 @@ func (h *ProductHandler) HandleDeleteVersion(c *gin.Context) {
 		return
 	}
 
-	if err := h.Repo.DeleteVersion(productName, version, c.GetString("token"), c.GetBool("admin")); err != nil {
+	if err := h.Repo.DeleteVersion(productName, group, version, c.GetString("token"), c.GetBool("admin")); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})

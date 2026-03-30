@@ -18,10 +18,7 @@ func TestParseConfig_Success(t *testing.T) {
 
 		assert.Equal(t, 20, cfg.FileUploadLimit)
 
-		assert.Equal(t, "mongodb://localhost:27017/", cfg.Mongo.ConnectionString)
-		assert.Equal(t, "packster", cfg.Mongo.Database)
-		assert.Equal(t, "tokens", cfg.Mongo.TokenCollection)
-		assert.Equal(t, "products", cfg.Mongo.ProductCollection)
+		assert.Equal(t, "root:root@tcp(localhost:3306)/packster?parseTime=true", cfg.MySQL.DSN)
 
 		assert.Equal(t, "localhost:6379", cfg.Redis.Addr)
 		assert.Equal(t, "", cfg.Redis.Password)

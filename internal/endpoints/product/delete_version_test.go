@@ -1,11 +1,11 @@
 package product
 
 import (
-	"packster/pkg/types"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"packster/pkg/types"
 	"path/filepath"
 	"testing"
 
@@ -52,7 +52,7 @@ func TestHandleDeleteVersion(t *testing.T) {
 			product: "myproduct",
 			version: "1.0.0",
 			setupMock: func(repo *mockProductRepo, _ string) {
-				repo.On("FetchProduct", "myproduct").Return(nil, errors.New("db error"))
+				repo.On("FetchProduct", "myproduct", "").Return(nil, errors.New("db error"))
 			},
 			wantStatus: http.StatusBadRequest,
 			wantBody:   "db error",
@@ -62,7 +62,7 @@ func TestHandleDeleteVersion(t *testing.T) {
 			product: "myproduct",
 			version: "1.0.0",
 			setupMock: func(repo *mockProductRepo, _ string) {
-				repo.On("FetchProduct", "myproduct").Return(nil, nil)
+				repo.On("FetchProduct", "myproduct", "").Return(nil, nil)
 			},
 			wantStatus: http.StatusBadRequest,
 			wantBody:   "Product not found",
@@ -74,7 +74,7 @@ func TestHandleDeleteVersion(t *testing.T) {
 			admin:   boolPtr(false),
 			token:   "mytoken",
 			setupMock: func(repo *mockProductRepo, _ string) {
-				repo.On("FetchProduct", "myproduct").Return(
+				repo.On("FetchProduct", "myproduct", "").Return(
 					productWithToken("mytoken", types.TokenPermissions{Delete: false}), nil,
 				)
 			},
@@ -88,7 +88,7 @@ func TestHandleDeleteVersion(t *testing.T) {
 			admin:   boolPtr(true),
 			token:   "mytoken",
 			setupMock: func(repo *mockProductRepo, _ string) {
-				repo.On("FetchProduct", "myproduct").Return(
+				repo.On("FetchProduct", "myproduct", "").Return(
 					productWithToken("mytoken", types.TokenPermissions{Delete: false}), nil,
 				)
 			},
@@ -102,7 +102,7 @@ func TestHandleDeleteVersion(t *testing.T) {
 			admin:   boolPtr(true),
 			token:   "mytoken",
 			setupMock: func(repo *mockProductRepo, _ string) {
-				repo.On("FetchProduct", "myproduct").Return(
+				repo.On("FetchProduct", "myproduct", "").Return(
 					productWithToken("mytoken", types.TokenPermissions{Delete: true}), nil,
 				)
 			},
@@ -122,7 +122,7 @@ func TestHandleDeleteVersion(t *testing.T) {
 					"1.0.0",
 					types.Version{Path: "/etc/passwd", Checksum: "abc"},
 				)
-				repo.On("FetchProduct", "myproduct").Return(p, nil)
+				repo.On("FetchProduct", "myproduct", "").Return(p, nil)
 			},
 			wantStatus: http.StatusForbidden,
 			wantBody:   "invalid file path",
@@ -141,8 +141,8 @@ func TestHandleDeleteVersion(t *testing.T) {
 					"1.0.0",
 					types.Version{Path: filePath, Checksum: "abc"},
 				)
-				repo.On("FetchProduct", "myproduct").Return(p, nil)
-				repo.On("DeleteVersion", "myproduct", "1.0.0", "mytoken", true).Return(errors.New("db error"))
+				repo.On("FetchProduct", "myproduct", "").Return(p, nil)
+				repo.On("DeleteVersion", "myproduct", "", "1.0.0", "mytoken", true).Return(errors.New("db error"))
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantBody:   "db error",
@@ -161,8 +161,8 @@ func TestHandleDeleteVersion(t *testing.T) {
 					"1.0.0",
 					types.Version{Path: filePath, Checksum: "abc"},
 				)
-				repo.On("FetchProduct", "myproduct").Return(p, nil)
-				repo.On("DeleteVersion", "myproduct", "1.0.0", "mytoken", true).Return(nil)
+				repo.On("FetchProduct", "myproduct", "").Return(p, nil)
+				repo.On("DeleteVersion", "myproduct", "", "1.0.0", "mytoken", true).Return(nil)
 			},
 			wantStatus: http.StatusNoContent,
 		},
@@ -218,4 +218,40 @@ func TestHandleDeleteVersion(t *testing.T) {
 			repo.AssertExpectations(t)
 		})
 	}
+}
+
+func TestHandleDeleteVersion_WithGroup(t *testing.T) {
+	base := t.TempDir()
+	orig, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(base))
+	defer os.Chdir(orig)
+
+	fileDir := filepath.Join(productsBaseDir, "staging", "myproduct", "1.0.0")
+	require.NoError(t, os.MkdirAll(fileDir, 0755))
+	filePath := filepath.Join(fileDir, "artifact.zip")
+	require.NoError(t, os.WriteFile(filePath, []byte("data"), 0644))
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodDelete, "/product/myproduct/1.0.0?group=staging", nil)
+	c.Params = gin.Params{
+		{Key: "product", Value: "myproduct"},
+		{Key: "version", Value: "1.0.0"},
+	}
+	c.Set("admin", true)
+	c.Set("token", "mytoken")
+
+	repo := &mockProductRepo{}
+	repo.On("FetchProduct", "myproduct", "staging").Return(
+		productWithTokenAndVersion("mytoken", types.TokenPermissions{Delete: true}, "1.0.0", types.Version{Path: filePath, Checksum: "abc"}), nil,
+	)
+	repo.On("DeleteVersion", "myproduct", "staging", "1.0.0", "mytoken", true).Return(nil)
+
+	handler := &ProductHandler{Repo: repo}
+	handler.HandleDeleteVersion(c)
+
+	assert.Equal(t, http.StatusNoContent, c.Writer.Status())
+	repo.AssertExpectations(t)
 }
