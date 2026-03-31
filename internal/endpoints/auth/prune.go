@@ -19,9 +19,7 @@ import (
 // @Security     ApiKeyAuth
 // @Router       /prune/{token} [delete]
 func (h *AuthHandler) HandlePrune(c *gin.Context) {
-	admin, exists := c.Get("admin")
-	if !exists || !admin.(bool) {
-		c.String(http.StatusUnauthorized, "Only admin allowed to prune an api token")
+	if !h.requireAdmin(c, "prune an api token") {
 		return
 	}
 

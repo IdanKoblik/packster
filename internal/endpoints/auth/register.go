@@ -24,9 +24,7 @@ import (
 // @Security     ApiKeyAuth
 // @Router       /register [put]
 func (h *AuthHandler) HandleRegister(c *gin.Context) {
-	admin, exists := c.Get("admin")
-	if !exists || !admin.(bool) {
-		c.String(http.StatusUnauthorized, "Only admin allowed to register new tokens")
+	if !h.requireAdmin(c, "register new tokens") {
 		return
 	}
 

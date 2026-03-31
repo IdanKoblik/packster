@@ -81,7 +81,7 @@ func (r *AuthRepository) CreateToken(request *types.RegisterRequest) (string, er
 	token := uuid.NewString()
 	hashedToken := utils.Hash(token)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
 	result, err := r.DB.ExecContext(ctx,
@@ -135,7 +135,7 @@ func (r *AuthRepository) PruneToken(rawToken string) error {
 
 	r.RedisClient.Del(context.Background(), r.getCacheKey(hashedToken))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
 	_, err = r.DB.ExecContext(ctx,
@@ -147,7 +147,7 @@ func (r *AuthRepository) PruneToken(rawToken string) error {
 }
 
 func (r *AuthRepository) ListTokens() ([]types.ApiToken, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
 	rows, err := r.DB.QueryContext(ctx,
@@ -181,7 +181,7 @@ func (r *AuthRepository) FetchToken(rawToken string) (*types.ApiToken, error) {
 		metrics.AuthCacheMisses.Inc()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
 	var apiToken types.ApiToken

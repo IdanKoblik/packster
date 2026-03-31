@@ -5,8 +5,6 @@ import (
 	"os"
 	"packster/internal/endpoints"
 	"packster/internal/utils"
-	"path/filepath"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,14 +37,8 @@ func (h *ProductHandler) HandleDeleteVersion(c *gin.Context) {
 
 	group := c.Query("group")
 
-	product, err := h.Repo.FetchProduct(productName, group)
-	if err != nil {
-		endpoints.BadRequest(c, err)
-		return
-	}
-
+	product := h.fetchProductOrAbort(c, productName, group)
 	if product == nil {
-		c.String(http.StatusBadRequest, "Product not found")
 		return
 	}
 
@@ -62,15 +54,8 @@ func (h *ProductHandler) HandleDeleteVersion(c *gin.Context) {
 		return
 	}
 
-	// Defense-in-depth: ensure the stored path cannot escape the products directory.
-	absBase, err := filepath.Abs(productsBaseDir)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "internal error")
-		return
-	}
-	absFile, err := filepath.Abs(v.Path)
-	if err != nil || !strings.HasPrefix(absFile, absBase+string(filepath.Separator)) {
-		c.String(http.StatusForbidden, "invalid file path")
+	absFile, ok := validateFilePath(c, v.Path)
+	if !ok {
 		return
 	}
 

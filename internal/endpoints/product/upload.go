@@ -58,14 +58,8 @@ func (h *ProductHandler) HandleUpload(c *gin.Context) {
 		return
 	}
 
-	product, err := h.Repo.FetchProduct(request.Product, request.GroupName)
-	if err != nil {
-		endpoints.BadRequest(c, err)
-		return
-	}
-
+	product := h.fetchProductOrAbort(c, request.Product, request.GroupName)
 	if product == nil {
-		c.String(http.StatusBadRequest, "Product not found")
 		return
 	}
 

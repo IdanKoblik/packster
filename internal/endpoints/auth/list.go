@@ -18,9 +18,7 @@ import (
 // @Security     ApiKeyAuth
 // @Router       /tokens [get]
 func (h *AuthHandler) HandleListTokens(c *gin.Context) {
-	admin, exists := c.Get("admin")
-	if !exists || !admin.(bool) {
-		c.String(http.StatusUnauthorized, "Only admin allowed to list tokens")
+	if !h.requireAdmin(c, "list tokens") {
 		return
 	}
 

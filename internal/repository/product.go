@@ -34,8 +34,36 @@ func NewProductRepository(db *sql.DB, cfg *config.Config) *ProductRepository {
 	}
 }
 
+func dbCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 5*time.Second)
+}
+
+func (r *ProductRepository) fetchAndAuthorize(name, group, token string, admin bool, check func(types.TokenPermissions) bool, errMsg string) (*types.Product, error) {
+	product, err := r.FetchProduct(name, group)
+	if err != nil {
+		return nil, err
+	}
+	if product == nil {
+		return nil, errors.New("product not found")
+	}
+	if !admin && !check(product.Tokens[utils.Hash(token)]) {
+		return nil, errors.New(errMsg)
+	}
+	return product, nil
+}
+
+func scanProduct(rows *sql.Rows) (types.Product, error) {
+	var p types.Product
+	if err := rows.Scan(&p.Name, &p.GroupName); err != nil {
+		return p, err
+	}
+	p.Tokens = map[string]types.TokenPermissions{}
+	p.Versions = map[string]types.Version{}
+	return p, nil
+}
+
 func (r *ProductRepository) ListProducts() ([]types.Product, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
 	rows, err := r.DB.QueryContext(ctx, "SELECT name, group_name FROM products")
@@ -46,12 +74,10 @@ func (r *ProductRepository) ListProducts() ([]types.Product, error) {
 
 	var products []types.Product
 	for rows.Next() {
-		var p types.Product
-		if err := rows.Scan(&p.Name, &p.GroupName); err != nil {
+		p, err := scanProduct(rows)
+		if err != nil {
 			return nil, err
 		}
-		p.Tokens = map[string]types.TokenPermissions{}
-		p.Versions = map[string]types.Version{}
 		products = append(products, p)
 	}
 
@@ -59,7 +85,7 @@ func (r *ProductRepository) ListProducts() ([]types.Product, error) {
 }
 
 func (r *ProductRepository) ListProductsByToken(hashedToken string) ([]types.Product, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
 	rows, err := r.DB.QueryContext(ctx,
@@ -75,12 +101,10 @@ func (r *ProductRepository) ListProductsByToken(hashedToken string) ([]types.Pro
 
 	var products []types.Product
 	for rows.Next() {
-		var p types.Product
-		if err := rows.Scan(&p.Name, &p.GroupName); err != nil {
+		p, err := scanProduct(rows)
+		if err != nil {
 			return nil, err
 		}
-		p.Tokens = map[string]types.TokenPermissions{}
-		p.Versions = map[string]types.Version{}
 		products = append(products, p)
 	}
 
@@ -88,7 +112,7 @@ func (r *ProductRepository) ListProductsByToken(hashedToken string) ([]types.Pro
 }
 
 func (r *ProductRepository) FetchProduct(name, group string) (*types.Product, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
 	var productID int64
@@ -158,7 +182,7 @@ func (r *ProductRepository) CreateProduct(product *types.Product) error {
 
 	product.HashTokens()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
 	tx, err := r.DB.BeginTx(ctx, nil)
@@ -207,46 +231,30 @@ func (r *ProductRepository) CreateProduct(product *types.Product) error {
 }
 
 func (r *ProductRepository) DeleteProduct(name, group, token string, admin bool) error {
-	product, err := r.FetchProduct(name, group)
-	if err != nil {
+	if _, err := r.fetchAndAuthorize(name, group, token, admin, func(p types.TokenPermissions) bool {
+		return p.Maintainer || p.Delete
+	}, "missing delete permission"); err != nil {
 		return err
 	}
 
-	if product == nil {
-		return errors.New("product not found")
-	}
-
-	permissions := product.Tokens[utils.Hash(token)]
-	if !admin && !permissions.Maintainer && !permissions.Delete {
-		return errors.New("missing delete permission")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
-	_, err = r.DB.ExecContext(ctx, "DELETE FROM products WHERE name = ? AND group_name = ?", name, group)
+	_, err := r.DB.ExecContext(ctx, "DELETE FROM products WHERE name = ? AND group_name = ?", name, group)
 	return err
 }
 
 func (r *ProductRepository) DeleteToken(productName, group, sourceToken, targetToken string, admin bool) error {
-	product, err := r.FetchProduct(productName, group)
-	if err != nil {
+	if _, err := r.fetchAndAuthorize(productName, group, sourceToken, admin, func(p types.TokenPermissions) bool {
+		return p.Maintainer
+	}, "missing maintainer permission"); err != nil {
 		return err
 	}
 
-	if product == nil {
-		return errors.New("product not found")
-	}
-
-	permissions := product.Tokens[utils.Hash(sourceToken)]
-	if !admin && !permissions.Maintainer {
-		return errors.New("missing maintainer permission")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
-	_, err = r.DB.ExecContext(ctx,
+	_, err := r.DB.ExecContext(ctx,
 		`DELETE pp FROM product_permissions pp
 		 JOIN products p ON pp.product_id = p.id
 		 JOIN api_tokens at ON pp.principal_id = at.id
@@ -256,25 +264,17 @@ func (r *ProductRepository) DeleteToken(productName, group, sourceToken, targetT
 }
 
 func (r *ProductRepository) AddToken(productName, group, sourceToken, targetToken string, permissions types.TokenPermissions, admin bool) error {
-	product, err := r.FetchProduct(productName, group)
-	if err != nil {
+	if _, err := r.fetchAndAuthorize(productName, group, sourceToken, admin, func(p types.TokenPermissions) bool {
+		return p.Maintainer
+	}, "missing maintainer permission"); err != nil {
 		return err
 	}
 
-	if product == nil {
-		return errors.New("product not found")
-	}
-
-	tokenPermissions := product.Tokens[utils.Hash(sourceToken)]
-	if !admin && !tokenPermissions.Maintainer {
-		return errors.New("missing maintainer permission")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
 	var productID int64
-	err = r.DB.QueryRowContext(ctx,
+	err := r.DB.QueryRowContext(ctx,
 		"SELECT id FROM products WHERE name = ? AND group_name = ?", productName, group).Scan(&productID)
 	if err != nil {
 		return err
@@ -297,24 +297,16 @@ func (r *ProductRepository) AddToken(productName, group, sourceToken, targetToke
 }
 
 func (r *ProductRepository) DeleteVersion(productName, group, version, token string, admin bool) error {
-	product, err := r.FetchProduct(productName, group)
-	if err != nil {
+	if _, err := r.fetchAndAuthorize(productName, group, token, admin, func(p types.TokenPermissions) bool {
+		return p.Maintainer || p.Delete
+	}, "missing maintainer / delete permission"); err != nil {
 		return err
 	}
 
-	if product == nil {
-		return errors.New("product not found")
-	}
-
-	permissions := product.Tokens[utils.Hash(token)]
-	if !admin && !permissions.Maintainer && !permissions.Delete {
-		return errors.New("missing maintainer / delete permission")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
-	_, err = r.DB.ExecContext(ctx,
+	_, err := r.DB.ExecContext(ctx,
 		`DELETE pv FROM product_versions pv
 		 JOIN products p ON pv.product_id = p.id
 		 WHERE p.name = ? AND p.group_name = ? AND pv.name = ?`,
@@ -323,25 +315,18 @@ func (r *ProductRepository) DeleteVersion(productName, group, version, token str
 }
 
 func (r *ProductRepository) AddVersion(productName, group, version, token string, admin bool, v types.Version) error {
-	product, err := r.FetchProduct(productName, group)
+	product, err := r.fetchAndAuthorize(productName, group, token, admin, func(p types.TokenPermissions) bool {
+		return p.Upload
+	}, "missing upload permission")
 	if err != nil {
 		return err
-	}
-
-	if product == nil {
-		return errors.New("product not found")
-	}
-
-	permissions := product.Tokens[utils.Hash(token)]
-	if !admin && !permissions.Upload {
-		return errors.New("missing upload permission")
 	}
 
 	if _, ok := product.Versions[version]; ok {
 		return errors.New("version already exists")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := dbCtx()
 	defer cancel()
 
 	var productID int64
