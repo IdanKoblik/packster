@@ -1,0 +1,60 @@
+package main
+
+import (
+	"fmt"
+	"strings"
+	"os"
+	"math/rand/v2"
+	"packster/internal/config"
+	"packster/internal/logging"
+)
+
+const BANNER = `
+██████╗  █████╗  ██████╗██╗  ██╗███████╗████████╗███████╗██████╗
+██╔══██╗██╔══██╗██╔════╝██║ ██╔╝██╔════╝╚══██╔══╝██╔════╝██╔══██╗
+██████╔╝███████║██║     █████╔╝ ███████╗   ██║   █████╗  ██████╔╝
+██╔═══╝ ██╔══██║██║     ██╔═██╗ ╚════██║   ██║   ██╔══╝  ██╔══██╗
+██║     ██║  ██║╚██████╗██║  ██╗███████║   ██║   ███████╗██║  ██║
+╚═╝     ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝
+`
+
+const (
+	MAINTAINER = "Idan Koblik"
+
+	PURPLE = "\033[38;2;87;87;232m"
+	RESET = "\033[0m"
+)
+
+var BUILD_TIME string
+
+func main() {
+	logging.SetupLogger()
+	printBanner()
+
+	cfg, err := config.ParseConfig(os.Getenv("CONFIG_PATH"))
+	if err != nil {
+		logging.Log.Error(err)
+		os.Exit(1)
+	}
+
+	logging.Log.Debugf("Max file size that can be uploaded: %d MB\n", cfg.FileUploadLimit)
+}
+
+func printBanner() {
+	fmt.Print(PURPLE)
+	fmt.Print(BANNER)
+	fmt.Print(RESET)
+	fmt.Println()
+
+	buildTime := BUILD_TIME
+	if buildTime == "" {
+		buildTime = "unknown"
+	}
+
+	fmt.Printf("\t\t%s • %s\n\n", MAINTAINER, buildTime)
+}
+
+func generateMask() string {
+	n := rand.N(18) + 5
+	return strings.Repeat("*", n)
+}
