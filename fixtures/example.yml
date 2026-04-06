@@ -1,1 +1,7 @@
 file_upload_limit: 20
+
+sql:
+  host: "localhost:3306"
+  db: "packster"
+  username: "root"
+  password: "root"

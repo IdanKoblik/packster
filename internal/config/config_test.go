@@ -1,8 +1,10 @@
 package config
 
 import (
-	"path/filepath"
 	"testing"
+	"fmt"
+	"path/filepath"
+	"net/url"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -17,6 +19,18 @@ func TestParseConfig_Success(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 20, cfg.FileUploadLimit)
+
+		sql := cfg.Sql
+
+
+		str := fmt.Sprintf("%s:%s@tcp(%s)/%s?parseTime=true",
+			sql.Username,
+			url.QueryEscape(sql.Password),
+			sql.Host,
+			sql.DB,
+		)
+
+		assert.Equal(t, str, sql.DSN())
 	}
 }
 

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"os"
 	"math/rand/v2"
+
+	"packster/internal/sql"
 	"packster/internal/config"
 	"packster/internal/logging"
 )
@@ -38,6 +40,23 @@ func main() {
 	}
 
 	logging.Log.Debugf("Max file size that can be uploaded: %d MB\n", cfg.FileUploadLimit)
+
+	logging.Log.Info("Connecting to mysql db:")
+	logging.Log.Infof("Host: %s", cfg.Sql.Password)
+	logging.Log.Infof("Database: %s", cfg.Sql.DB)
+	logging.Log.Infof("Username: %s", cfg.Sql.Username)
+	logging.Log.Infof("Password: %s", generateMask())
+
+	err = sql.ConnectToMysql(&cfg.Sql)
+	if err != nil {
+		logging.Log.Error(err)
+		os.Exit(1)
+	}
+
+	defer sql.MysqlConn.Close()
+	logging.Log.Info("Successfully connected to mysql db")
+
+	logging.Log.Info("Packster is up and running!")
 }
 
 func printBanner() {
