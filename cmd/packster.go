@@ -56,6 +56,13 @@ func main() {
 	defer sql.MysqlConn.Close()
 	logging.Log.Info("Successfully connected to mysql db")
 
+	if cfg.Gitlab != nil {
+		logging.Log.Info("Gitlab sso detected")
+		logging.Log.Infof("Host: %s", cfg.Gitlab.Host)
+		logging.Log.Infof("Application ID: %s", generateMask())
+		logging.Log.Infof("Secret: %s", generateMask())
+	}
+
 	logging.Log.Info("Packster is up and running!")
 }
 

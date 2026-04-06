@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"net/url"
 )
+
 type Config struct {
 	FileUploadLimit int `yaml:"file_upload_limit,omitempty"`
 
 	Sql MysqlConfig `yaml:"sql"`
+	Gitlab *GitlabConfig `yaml:"gitlab,omitempty"`
 }
 
 type MysqlConfig struct {
@@ -24,4 +26,10 @@ func (c MysqlConfig) DSN() string {
 		c.Host,
 		c.DB,
 	)
+}
+
+type GitlabConfig struct {
+	Host          string `yaml:"host"`
+	ApplicationId string `yaml:"application_id"`
+	Secret        string `yaml:"secret"`
 }
