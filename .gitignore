@@ -3,6 +3,7 @@
 #
 # Local
 bin/*
+web/node_modules/
 
 # Binaries for programs and plugins
 *.exe
