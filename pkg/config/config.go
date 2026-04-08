@@ -1,31 +1,19 @@
 package config
 
-import (
-	"fmt"
-	"net/url"
-)
-
 type Config struct {
 	FileUploadLimit int `yaml:"file_upload_limit,omitempty"`
 
-	Sql MysqlConfig `yaml:"sql"`
+	Sql PgsqlConfig `yaml:"sql"`
 	Gitlab *GitlabConfig `yaml:"gitlab,omitempty"`
 }
 
-type MysqlConfig struct {
-	Host     string `yaml:"host"`
-	Username string `yaml:"username"`
+type PgsqlConfig struct {
+	Host string `yaml:"host"`
+	Port uint16 `yaml:"port"`
+	DB string `yaml:"db"`
+	User string `yaml:"user"`
 	Password string `yaml:"password"`
-	DB       string `yaml:"db"`
-}
-
-func (c MysqlConfig) DSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s)/%s?parseTime=true",
-		c.Username,
-		url.QueryEscape(c.Password),
-		c.Host,
-		c.DB,
-	)
+	SSL  bool   `yaml:"ssl"`
 }
 
 type GitlabConfig struct {

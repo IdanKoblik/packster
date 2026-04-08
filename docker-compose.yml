@@ -1,19 +1,20 @@
 services:
-  mysql:
-    image: mysql:8.0
+  postgres:
+    image: postgres:17
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: packster
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: packster
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
       - ./scheme.sql:/docker-entrypoint-initdb.d/scheme.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: ["CMD-SHELL", "pg_isready -U root -d packster"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  mysql_data:
+  postgres_data:

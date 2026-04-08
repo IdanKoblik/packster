@@ -41,20 +41,20 @@ func main() {
 
 	logging.Log.Debugf("Max file size that can be uploaded: %d MB\n", cfg.FileUploadLimit)
 
-	logging.Log.Info("Connecting to mysql db:")
-	logging.Log.Infof("Host: %s", cfg.Sql.Password)
-	logging.Log.Infof("Database: %s", cfg.Sql.DB)
-	logging.Log.Infof("Username: %s", cfg.Sql.Username)
+	logging.Log.Info("Connecting to pgsql db:")
+	logging.Log.Infof("Host: %s", cfg.Sql.Host)
+	logging.Log.Infof("Port: %d", cfg.Sql.Port)
+	logging.Log.Infof("Username: %s", cfg.Sql.User)
 	logging.Log.Infof("Password: %s", generateMask())
 
-	err = sql.ConnectToMysql(&cfg.Sql)
+	err = sql.OpenPgsqlConnection(&cfg.Sql)
 	if err != nil {
 		logging.Log.Error(err)
 		os.Exit(1)
 	}
 
-	defer sql.MysqlConn.Close()
-	logging.Log.Info("Successfully connected to mysql db")
+	defer sql.PgsqlConn.Close()
+	logging.Log.Info("Successfully connected to pgsql db")
 
 	if cfg.Gitlab != nil {
 		logging.Log.Info("Gitlab sso detected")

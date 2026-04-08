@@ -1,7 +1,8 @@
 file_upload_limit: 20
 
 sql:
-  host: "localhost:3306"
-  db: "packster"
-  username: "root"
+  host: "localhost"
+  port: 5432
+  db: "postgres"
+  user: "root"
   password: "root"

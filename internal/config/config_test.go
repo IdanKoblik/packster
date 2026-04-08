@@ -2,9 +2,7 @@ package config
 
 import (
 	"testing"
-	"fmt"
 	"path/filepath"
-	"net/url"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -21,16 +19,12 @@ func TestParseConfig_Success(t *testing.T) {
 		assert.Equal(t, 20, cfg.FileUploadLimit)
 
 		sql := cfg.Sql
-
-
-		str := fmt.Sprintf("%s:%s@tcp(%s)/%s?parseTime=true",
-			sql.Username,
-			url.QueryEscape(sql.Password),
-			sql.Host,
-			sql.DB,
-		)
-
-		assert.Equal(t, str, sql.DSN())
+		assert.Equal(t, "localhost", sql.Host)
+		assert.Equal(t, uint16(5432), sql.Port)
+		assert.Equal(t, "postgres", sql.DB)
+		assert.Equal(t, "root", sql.User)
+		assert.Equal(t, "root", sql.Password)
+		assert.False(t, sql.SSL)
 	}
 }
 

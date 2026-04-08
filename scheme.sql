@@ -1,43 +1,82 @@
-CREATE TABLE `products`(
-    `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `name` VARCHAR(255) NOT NULL,
-    `group_name` VARCHAR(255) NOT NULL,
-    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP());
-ALTER TABLE
-    `products` ADD UNIQUE `products_name_group_name_unique`(`name`, `group_name`);
-CREATE TABLE `product_versions`(
-    `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `product_id` BIGINT NOT NULL,
-    `name` VARCHAR(255) NOT NULL,
-    `path` TEXT NOT NULL,
-    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP());
-CREATE TABLE `auth`(
-    `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `type` ENUM('token', 'gitlab_user') NOT NULL,
-    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP());
-CREATE TABLE `gitlab_users`(
-    `id` BIGINT NOT NULL,
-    `gitlab_user_id` BIGINT NOT NULL,
-    `username` VARCHAR(255) NULL,
-    PRIMARY KEY(`id`)
+CREATE TABLE account (
+    id SERIAL PRIMARY KEY,
+    display_name VARCHAR(255) NOT NULL,
+    last_login TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL
 );
-ALTER TABLE
-    `gitlab_users` ADD UNIQUE `gitlab_users_gitlab_user_id_unique`(`gitlab_user_id`);
-CREATE TABLE `product_permissions`(
-    `principal_id` BIGINT NOT NULL,
-    `product_id` BIGINT NOT NULL,
-    `can_download` BOOLEAN NULL,
-    `can_upload` BOOLEAN NULL,
-    `can_remove` BOOLEAN NULL,
-    `is_maintainer` BOOLEAN NULL,
-    PRIMARY KEY(`principal_id`)
+
+CREATE TABLE host (
+    id SERIAL PRIMARY KEY,
+    url VARCHAR(255) NOT NULL
 );
-ALTER TABLE
-    `product_permissions` ADD PRIMARY KEY(`product_id`);
-ALTER TABLE
-    `gitlab_users` ADD CONSTRAINT `gitlab_users_id_foreign` FOREIGN KEY(`id`) REFERENCES `auth`(`id`);
-ALTER TABLE
-    `product_permissions` ADD CONSTRAINT `product_permissions_product_id_foreign` FOREIGN KEY(`product_id`) REFERENCES `products`(`id`);
-ALTER TABLE
-    `product_versions` ADD CONSTRAINT `product_versions_product_id_foreign` FOREIGN KEY(`product_id`) REFERENCES `products`(`id`);
-ALTER TABLE
+
+CREATE TABLE repository (
+    id SERIAL PRIMARY KEY,
+    host INT NOT NULL,
+    repository INT NOT NULL,
+    owner INT NOT NULL,
+    created_at INT NOT NULL,
+
+    FOREIGN KEY (host) REFERENCES host(id),
+    FOREIGN KEY (owner) REFERENCES account(id)
+);
+
+CREATE INDEX idx_repository_repository ON repository(repository);
+
+CREATE TABLE product (
+    id SERIAL PRIMARY KEY,
+    external_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    group_name VARCHAR(255) NOT NULL,
+    repository INT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+
+    FOREIGN KEY (repository) REFERENCES repository(id)
+);
+
+CREATE INDEX idx_product_external_id ON product(external_id);
+
+CREATE TABLE token (
+    id SERIAL PRIMARY KEY,
+    value VARCHAR(255) NOT NULL,
+    expiry TIMESTAMP NOT NULL,
+    owner INT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+
+    FOREIGN KEY (owner) REFERENCES account(id)
+);
+
+CREATE TABLE token_access (
+    token INT NOT NULL,
+    product INT NOT NULL,
+
+    PRIMARY KEY (token, product),
+
+    FOREIGN KEY (token) REFERENCES token(id),
+    FOREIGN KEY (product) REFERENCES product(id)
+);
+
+CREATE TABLE auth (
+    id INT PRIMARY KEY,
+    account INT NOT NULL,
+    username VARCHAR(255) NOT NULL,
+    sso_id INT NOT NULL,
+    host INT NOT NULL,
+
+    FOREIGN KEY (account) REFERENCES account(id),
+    FOREIGN KEY (host) REFERENCES host(id)
+);
+
+CREATE TABLE permission (
+    account INT NOT NULL,
+    repository INT NOT NULL,
+    can_download BOOLEAN NOT NULL,
+    can_upload BOOLEAN NOT NULL,
+    can_delete BOOLEAN NOT NULL,
+
+    PRIMARY KEY (account, repository),
+
+    FOREIGN KEY (account) REFERENCES account(id),
+    FOREIGN KEY (repository) REFERENCES repository(id)
+);
+
