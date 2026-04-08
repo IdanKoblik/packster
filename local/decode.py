@@ -13,7 +13,7 @@ def decode_gitlab_jwt(token: str):
             token,
             signing_key.key,
             algorithms=["RS256"],
-            audience=None,   # set if needed
+            audience=None,   
             options={"verify_aud": False}
         )
 
