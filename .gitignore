@@ -6,6 +6,7 @@ local/venv/
 bin/*
 web/node_modules/
 requests.http
+config.yml
 
 # Binaries for programs and plugins
 *.exe
