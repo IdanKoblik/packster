@@ -66,8 +66,7 @@ func main() {
 		logging.Log.Infof("Secret: %s", generateMask())
 	}
 
-	logging.Log.Info("Packster is up and running!")
-
+	logging.Log.Info("Setting up rest api")
 	router := gin.Default()
 
 	addr := os.Getenv("ADDR")
@@ -75,6 +74,7 @@ func main() {
 		addr = "0.0.0.0:8080"
 	}
 
+	logging.Log.Debugf("Addr: %s", addr)
 	api := router.Group("/api")
 	{
 		api.GET("/health", func(c *gin.Context){
@@ -83,6 +83,8 @@ func main() {
 	}
 
 	router.Run(addr)
+
+	logging.Log.Info("Packster is up and running!")
 }
 
 func printBanner() {
