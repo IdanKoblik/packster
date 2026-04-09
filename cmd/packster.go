@@ -6,7 +6,6 @@ import (
 	"os"
 	"math/rand/v2"
 
-	"packster/pkg/types"
 	"packster/pkg/config"
 	"packster/internal/sql"
 	internalConfig "packster/internal/config"
@@ -14,6 +13,7 @@ import (
 	"packster/internal/endpoints"
 	"packster/internal/endpoints/gitlab"
 	"packster/internal/repository"
+	"packster/internal/ui"
 
 	"github.com/gin-gonic/gin"
 )
@@ -94,6 +94,8 @@ func main() {
 		logging.Log.Info("Setting up gitlab endpoints")
 		setupGitlabEndpoints(auth, repo, &cfg)
 	}
+
+	ui.RegisterRoutes(router)
 
 	router.Run(addr)
 	logging.Log.Info("Packster is up and running!")
