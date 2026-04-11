@@ -106,6 +106,8 @@ func setupGitlabEndpoints(authGroup *gin.RouterGroup, repo *repository.AccountRe
 	group := authGroup.Group("/gitlab")
 	{
 		group.GET("/status", handler.HandleStatus)
+		group.GET("/redirect", handler.HandleRedirect)
+		group.GET("/callback", handler.HandleCallback)
 	}
 }
 

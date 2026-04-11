@@ -6,7 +6,7 @@ import (
 	"database/sql"
 
 	"packster/pkg/types"
-	"packster/internal/logging"
+	"packster/internal/utils"
 )
 
 type IAccountRepo interface {
@@ -24,7 +24,7 @@ func NewAccountRepo(sqlConn *sql.DB) *AccountRepo {
 }
 
 func (r *AccountRepo) CreateAccount(request types.AuthRequest) error {
-	hostExists, hostId := HostExists(request.Host, r.SqlConn)
+	hostExists, hostId := utils.HostExists(request.Host, r.SqlConn)
 	if !hostExists {
 		return fmt.Errorf("%s isnt a valid host", request.Host)
 	}
@@ -86,25 +86,4 @@ func accountExists(username, sso string, host int, sqlConn *sql.DB) (bool, error
 	}
 
 	return exists, nil
-}
-
-func HostExists(url string, sqlConn *sql.DB) (bool, int) {
-	if sqlConn == nil {
-		return false, -1
-	}
-
-	var id int
-	err := sqlConn.QueryRow(
-		`SELECT id FROM host WHERE url=$1`,
-		url,
-	).Scan(&id)
-
-	if err == sql.ErrNoRows {
-		return false, -1
-	} else if err != nil {
-		logging.Log.Error(err)
-		return false, -1
-	}
-
-	return true, id
 }
