@@ -1,9 +1,0 @@
-apiVersion: 1
-
-providers:
-  - name: packster
-    type: file
-    disableDeletion: true
-    updateIntervalSeconds: 30
-    options:
-      path: /var/lib/grafana/dashboards

@@ -1,8 +1,8 @@
 package config
 
 import (
-	"path/filepath"
 	"testing"
+	"path/filepath"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -18,14 +18,15 @@ func TestParseConfig_Success(t *testing.T) {
 
 		assert.Equal(t, 20, cfg.FileUploadLimit)
 
-		assert.Equal(t, "mongodb://localhost:27017/", cfg.Mongo.ConnectionString)
-		assert.Equal(t, "packster", cfg.Mongo.Database)
-		assert.Equal(t, "tokens", cfg.Mongo.TokenCollection)
-		assert.Equal(t, "products", cfg.Mongo.ProductCollection)
+		sql := cfg.Sql
+		assert.Equal(t, "localhost", sql.Host)
+		assert.Equal(t, uint16(5432), sql.Port)
+		assert.Equal(t, "packster", sql.DB)
+		assert.Equal(t, "root", sql.User)
+		assert.Equal(t, "root", sql.Password)
+		assert.False(t, sql.SSL)
 
-		assert.Equal(t, "localhost:6379", cfg.Redis.Addr)
-		assert.Equal(t, "", cfg.Redis.Password)
-		assert.Equal(t, 0, cfg.Redis.DB)
+		assert.Nil(t, cfg.Gitlab)
 	}
 }
 

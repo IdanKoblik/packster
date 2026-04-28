@@ -1,171 +1,141 @@
-const apiHeaders = (token: string): Record<string, string> => ({
-  'Content-Type': 'application/json',
-  'X-Api-Token': token,
-})
+import type { Permission, PermissionEntry, Product, Project, UserCandidate, Version } from "./types";
 
-async function extractError(res: Response): Promise<string> {
-  const data = await res.json().catch(() => ({}))
-  return (data as { error?: string }).error ?? `HTTP ${res.status}`
+export class UnauthorizedError extends Error {
+  constructor() {
+    super("unauthorized");
+  }
 }
 
-export interface ApiToken {
-  token: string
-  admin: boolean
+export class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
 }
 
-export interface TokenPermissions {
-  maintainer: boolean
-  download: boolean
-  upload: boolean
-  delete: boolean
+async function request<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers ?? {});
+  headers.set("Authorization", `Bearer ${token}`);
+  if (!headers.has("Accept")) headers.set("Accept", "application/json");
+
+  const res = await fetch(path, { ...init, headers });
+  if (res.status === 401 || res.status === 403) throw new UnauthorizedError();
+
+  if (!res.ok) {
+    let msg = `${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body && typeof body.error === "string") msg = body.error;
+    } catch {
+      /* not JSON */
+    }
+    throw new ApiError(res.status, msg);
+  }
+
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
 }
 
-export interface Version {
-  path: string
-  checksum: string
-}
+export const listProjects = (token: string) =>
+  request<Project[]>(token, "/api/user/projects");
 
-export interface Product {
-  name: string
-  tokens: Record<string, TokenPermissions>
-  versions: Record<string, Version>
-}
+export const deleteProject = (token: string, projectId: number) =>
+  request<{ ok: true }>(token, `/api/projects/${projectId}`, { method: "DELETE" });
 
-export interface HealthStatus {
-  mongo: string
-  redis: string
-}
+export const listProducts = (token: string, projectId: number) =>
+  request<Product[]>(token, `/api/projects/${projectId}/products`);
 
-export async function validateLogin(token: string): Promise<boolean> {
-  const res = await fetch('/ui/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-  })
-  if (!res.ok) throw new Error(await extractError(res))
-  const data = await res.json()
-  return (data as { admin?: boolean }).admin === true
-}
+export const createProduct = (token: string, projectId: number, name: string) =>
+  request<Product>(token, `/api/projects/${projectId}/products`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
 
-export async function listTokens(token: string): Promise<ApiToken[]> {
-  const res = await fetch('/api/tokens', { headers: apiHeaders(token) })
-  if (!res.ok) throw new Error(await extractError(res))
-  return res.json()
-}
+export const deleteProduct = (token: string, projectId: number, productId: number) =>
+  request<{ ok: true }>(token, `/api/projects/${projectId}/products/${productId}`, {
+    method: "DELETE",
+  });
 
-export async function createToken(token: string, admin: boolean): Promise<string> {
-  const res = await fetch('/api/register', {
-    method: 'PUT',
-    headers: apiHeaders(token),
-    body: JSON.stringify({ admin }),
-  })
-  if (!res.ok) throw new Error(await extractError(res))
-  return res.text()
-}
-
-export async function revokeToken(token: string, targetToken: string): Promise<void> {
-  const res = await fetch(`/api/prune/${encodeURIComponent(targetToken)}`, {
-    method: 'DELETE',
-    headers: apiHeaders(token),
-  })
-  if (!res.ok) throw new Error(await extractError(res))
-}
-
-export async function listProducts(token: string): Promise<string[]> {
-  const res = await fetch('/api/product/list', { headers: apiHeaders(token) })
-  if (!res.ok) throw new Error(await extractError(res))
-  return res.json()
-}
-
-export async function fetchProduct(token: string, name: string): Promise<Product> {
-  const res = await fetch(`/api/product/fetch/${encodeURIComponent(name)}`, {
-    headers: apiHeaders(token),
-  })
-  if (!res.ok) throw new Error(await extractError(res))
-  return res.json()
-}
-
-export async function createProduct(token: string, name: string): Promise<void> {
-  const res = await fetch('/api/product/create', {
-    method: 'PUT',
-    headers: apiHeaders(token),
-    body: JSON.stringify({ name, tokens: {} }),
-  })
-  if (!res.ok) throw new Error(await extractError(res))
-}
-
-export async function deleteProduct(token: string, name: string): Promise<void> {
-  const res = await fetch(`/api/product/delete/${encodeURIComponent(name)}`, {
-    method: 'DELETE',
-    headers: apiHeaders(token),
-  })
-  if (!res.ok) throw new Error(await extractError(res))
-}
-
-export async function downloadVersion(
-  token: string,
-  product: string,
-  version: string,
-): Promise<void> {
-  const res = await fetch(
-    `/api/product/download/${encodeURIComponent(product)}/${encodeURIComponent(version)}`,
-    { headers: { 'X-Api-Token': token } },
-  )
-  if (!res.ok) throw new Error(await extractError(res))
-
-  const blob = await res.blob()
-
-  // Derive filename from Content-Disposition, fall back to product-version
-  const disposition = res.headers.get('Content-Disposition') ?? ''
-  const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
-  const filename = match ? match[1].replace(/['"]/g, '') : `${product}-${version}`
-
-  const url = URL.createObjectURL(blob)
-  const a   = document.createElement('a')
-  a.href     = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
+export const listVersions = (token: string, productId: number) =>
+  request<Version[]>(token, `/api/products/${productId}/versions`);
 
 export async function uploadVersion(
   token: string,
-  product: string,
-  version: string,
+  productId: number,
+  name: string,
   file: File,
-): Promise<void> {
-  const form = new FormData()
-  form.append('product', product)
-  form.append('version', version)
-  form.append('file', file)
-  // Do not set Content-Type — fetch sets it with the multipart boundary automatically
-  const res = await fetch('/api/product/upload', {
-    method: 'POST',
-    headers: { 'X-Api-Token': token },
+): Promise<Version> {
+  const form = new FormData();
+  form.append("name", name);
+  form.append("file", file);
+
+  const res = await fetch(`/api/products/${productId}/versions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
     body: form,
-  })
-  if (!res.ok) throw new Error(await extractError(res))
+  });
+  if (res.status === 401 || res.status === 403) throw new UnauthorizedError();
+  if (res.status === 413) throw new ApiError(413, "file exceeds upload limit");
+  if (!res.ok) {
+    let msg = `${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body && typeof body.error === "string") msg = body.error;
+    } catch {
+      /* not JSON */
+    }
+    throw new ApiError(res.status, msg);
+  }
+  return (await res.json()) as Version;
 }
 
-export async function deleteVersion(
+export const deleteVersion = (token: string, versionId: number) =>
+  request<{ ok: true }>(token, `/api/versions/${versionId}`, { method: "DELETE" });
+
+// Anchor downloads can't carry an Authorization header, so we fetch the blob
+// and trigger a synthetic <a download> instead of a direct link.
+export async function downloadVersion(
   token: string,
-  product: string,
-  version: string,
+  versionId: number,
+  filename: string,
 ): Promise<void> {
-  const res = await fetch(
-    `/api/product/delete/${encodeURIComponent(product)}/${encodeURIComponent(version)}`,
-    { method: 'DELETE', headers: apiHeaders(token) },
-  )
-  if (!res.ok) throw new Error(await extractError(res))
+  const res = await fetch(`/api/versions/${versionId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 401 || res.status === 403) throw new UnauthorizedError();
+  if (!res.ok) throw new ApiError(res.status, `download failed: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
-export async function fetchHealth(token: string): Promise<HealthStatus> {
-  const res = await fetch('/api/health', { headers: apiHeaders(token) })
-  const data: HealthStatus = await res.json().catch(() => ({
-    mongo: 'unreachable',
-    redis: 'unreachable',
-  }))
-  return data
-}
+export const listPermissions = (token: string, projectId: number) =>
+  request<PermissionEntry[]>(token, `/api/projects/${projectId}/permissions`);
+
+export const setPermission = (
+  token: string,
+  projectId: number,
+  body: { user_id: number; can_download: boolean; can_upload: boolean; can_delete: boolean },
+) =>
+  request<Permission>(token, `/api/projects/${projectId}/permissions`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+export const revokePermission = (token: string, projectId: number, userId: number) =>
+  request<{ ok: true }>(token, `/api/projects/${projectId}/permissions/${userId}`, {
+    method: "DELETE",
+  });
+
+export const searchUserCandidates = (token: string, projectId: number, q: string) =>
+  request<UserCandidate[]>(
+    token,
+    `/api/projects/${projectId}/permissions/candidates?q=${encodeURIComponent(q)}`,
+  );

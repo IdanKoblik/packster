@@ -1,18 +1,17 @@
 # Packster
 
-A self-hosted REST API service for managing versioned build artifacts. Store, retrieve, and control access to your build outputs with token-based authentication and per-product permissions.
+A self-hosted REST API service for manging versioned build artifacts. 
+Store, retrieve and delete your build outputs with git based sso.
 
 ## Requirements
-
-- Go 1.25+
-- MongoDB 7.0+
-- Redis 7+
+* Go 1.25+
+* Pgsql 17
 
 ## Installation
 
 ### From Source
 
-```bash
+``` shell
 git clone https://github.com/IdanKoblik/packster.git
 cd packster
 go mod tidy
@@ -21,90 +20,42 @@ make build
 
 The binary will be at `bin/packster`.
 
-### Docker Compose (Dependencies)
-
+### Docker compose
 Spin up MongoDB and Redis quickly:
 
-```bash
+``` shell
 docker compose up -d
 ```
 
 ## Configuration
+Create a YAML config file (see fixtures/example.yml for reference):
 
-Create a YAML config file (see `fixtures/example.yml` for reference):
+``` yaml
+file_upload_limit: 20 # Max upload size in MB
 
-```yaml
-file_upload_limit: 20              # Max upload size in MB
+sql:
+  host: "localhost"
+  port: 5432
+  db: "postgres"
+  user: "root"
+  password: "root"
 
-mongo:
-  connection_string: "mongodb://localhost:27017/"
-  database: "packster"
-  token_collection: "tokens"
-  product_collection: "products"
-
-redis:
-  addr: "localhost:6379"
-  password: ""
-  db: 0
-
-metrics:
-  addr: "0.0.0.0:9091"
-
+# (Optional)
+gitlab:
+  host: "https://gitlab.com"
+  application_id: "YOUR_APPLICATION_ID"
+  secert: "YOUR_SECRET"
 ```
 
 ## Running
+Set the CONFIG_PATH environment variable to point to your config file:
 
-Set the `CONFIG_PATH` environment variable to point to your config file:
-
-```bash
+``` shell
 CONFIG_PATH=./config.yml ./bin/packster
 ```
 
-To listen on a custom address (default is `0.0.0.0:8080`):
-
-```bash
-SERVER_ADDR=0.0.0.0:9090 CONFIG_PATH=./config.yml ./bin/packster
-```
-
-### Environment Variables
+## Environment Variables
 
 | Variable      | Description                                              |
 |---------------|----------------------------------------------------------|
 | `CONFIG_PATH` | Path to the YAML config file (required)                  |
-| `SERVER_ADDR` | Server listen address (default: `0.0.0.0:8080`)         |
-
-### First-Time Setup
-
-On first run, generate an initial admin token:
-
-```bash
-CONFIG_PATH=./config.yml ./bin/packster --init-admin-token
-```
-
-This prints an admin token to the logs. Save it — you'll use it in the `X-Api-Token` header to perform admin operations. Remove the flag after the first run; it has no effect once an admin token exists.
-
-## Usage
-
-All requests require the `X-Api-Token` header.
-
-For example:
-```bash
-curl -X PUT http://localhost:8080/api/product/create \
-  -H "X-Api-Token: <admin-token>" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "my-app"}'
-```
-
-## Permissions
-
-Non-admin tokens have no product access by default. A product maintainer or admin must grant permissions explicitly. Available permissions: `upload`, `download`, `delete`, `maintainer`.
-
-## Development
-
-```bash
-make build        # Build binary
-make run          # Build and run
-make test         # Run all tests
-make test-unit    # Run unit tests only
-make cover        # Generate coverage report
-```

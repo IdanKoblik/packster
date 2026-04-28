@@ -1,249 +1,149 @@
-package repository_test
+package repository
 
 import (
-	"packster/internal/helpers"
-	"packster/pkg/types"
+	"database/sql"
+	"fmt"
+	"regexp"
 	"testing"
+	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-const testProductToken = "test-product-token"
-
-func makeProduct(name string) *types.Product {
-	return &types.Product{
-		Name: name,
-		Tokens: map[string]types.TokenPermissions{
-			testProductToken: {
-				Maintainer: true,
-				Download:   true,
-				Upload:     true,
-				Delete:     true,
-			},
-		},
-		Versions: map[string]types.Version{},
-	}
+func newProductRepo(t *testing.T) (*ProductRepo, sqlmock.Sqlmock, func()) {
+	t.Helper()
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	return &ProductRepo{SqlDB: db}, mock, func() { db.Close() }
 }
 
-func TestCreateProduct_Success(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
+func TestProductRepo_Create(t *testing.T) {
+	repo, mock, cleanup := newProductRepo(t)
 	defer cleanup()
 
-	product := makeProduct("test-create-product")
-	err := repo.CreateProduct(product)
-	require.NoError(t, err)
-	defer repo.DeleteProduct("test-create-product", testProductToken, true)
-}
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "product"`)).
+		WithArgs("spigot", 5, sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(11))
 
-func TestCreateProduct_Duplicate(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
-	defer cleanup()
-
-	product := makeProduct("test-dup-product")
-	err := repo.CreateProduct(product)
-	require.NoError(t, err)
-	defer repo.DeleteProduct("test-dup-product", testProductToken, true)
-
-	err = repo.CreateProduct(makeProduct("test-dup-product"))
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "product already exists")
-}
-
-func TestFetchProduct_Success(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
-	defer cleanup()
-
-	product := makeProduct("test-fetch-product")
-	err := repo.CreateProduct(product)
-	require.NoError(t, err)
-	defer repo.DeleteProduct("test-fetch-product", testProductToken, true)
-
-	fetched, err := repo.FetchProduct("test-fetch-product")
+	p, err := repo.Create(5, "spigot")
 	assert.NoError(t, err)
-	assert.NotNil(t, fetched)
-	assert.Equal(t, "test-fetch-product", fetched.Name)
+	require.NotNil(t, p)
+	assert.Equal(t, 11, p.ID)
+	assert.Equal(t, "spigot", p.Name)
+	assert.Equal(t, 5, p.Project)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestFetchProduct_NotFound(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
+func TestProductRepo_Create_Error(t *testing.T) {
+	repo, mock, cleanup := newProductRepo(t)
 	defer cleanup()
 
-	fetched, err := repo.FetchProduct("nonexistent-product-xyz-12345")
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "product"`)).
+		WithArgs("spigot", 5, sqlmock.AnyArg()).
+		WillReturnError(fmt.Errorf("dup"))
+
+	p, err := repo.Create(5, "spigot")
+	assert.Error(t, err)
+	assert.Nil(t, p)
+}
+
+func TestProductRepo_GetByID_NotFound(t *testing.T) {
+	repo, mock, cleanup := newProductRepo(t)
+	defer cleanup()
+
+	mock.ExpectQuery(`WHERE id=`).
+		WithArgs(11).
+		WillReturnError(sql.ErrNoRows)
+
+	p, err := repo.GetByID(11)
 	assert.NoError(t, err)
-	assert.Nil(t, fetched)
+	assert.Nil(t, p)
 }
 
-func TestDeleteProduct_Success(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
+func TestProductRepo_GetByID_Found(t *testing.T) {
+	repo, mock, cleanup := newProductRepo(t)
 	defer cleanup()
 
-	product := makeProduct("test-delete-product")
-	err := repo.CreateProduct(product)
-	require.NoError(t, err)
+	rows := sqlmock.NewRows([]string{"id", "name", "project", "created_at"}).
+		AddRow(11, "spigot", 5, time.Time{})
+	mock.ExpectQuery(`WHERE id=`).
+		WithArgs(11).
+		WillReturnRows(rows)
 
-	err = repo.DeleteProduct("test-delete-product", testProductToken, true)
+	p, err := repo.GetByID(11)
 	assert.NoError(t, err)
+	require.NotNil(t, p)
+	assert.Equal(t, "spigot", p.Name)
+}
 
-	fetched, err := repo.FetchProduct("test-delete-product")
+func TestProductRepo_GetByName_NotFound(t *testing.T) {
+	repo, mock, cleanup := newProductRepo(t)
+	defer cleanup()
+
+	mock.ExpectQuery(`WHERE project=\$1 AND name=\$2`).
+		WithArgs(5, "spigot").
+		WillReturnError(sql.ErrNoRows)
+
+	p, err := repo.GetByName(5, "spigot")
 	assert.NoError(t, err)
-	assert.Nil(t, fetched)
+	assert.Nil(t, p)
 }
 
-func TestDeleteProduct_MissingPermission(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
+func TestProductRepo_GetByName_Found(t *testing.T) {
+	repo, mock, cleanup := newProductRepo(t)
 	defer cleanup()
 
-	product := makeProduct("test-delete-noperm")
-	err := repo.CreateProduct(product)
-	require.NoError(t, err)
-	defer repo.DeleteProduct("test-delete-noperm", testProductToken, true)
+	rows := sqlmock.NewRows([]string{"id", "name", "project", "created_at"}).
+		AddRow(11, "spigot", 5, time.Time{})
+	mock.ExpectQuery(`WHERE project=\$1 AND name=\$2`).
+		WithArgs(5, "spigot").
+		WillReturnRows(rows)
 
-	err = repo.DeleteProduct("test-delete-noperm", "unknown-token", false)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing delete permission")
-}
-
-func TestAddToken_Success(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
-	defer cleanup()
-
-	product := makeProduct("test-addtoken-product")
-	err := repo.CreateProduct(product)
-	require.NoError(t, err)
-	defer repo.DeleteProduct("test-addtoken-product", testProductToken, true)
-
-	newPerms := types.TokenPermissions{Download: true}
-	err = repo.AddToken("test-addtoken-product", testProductToken, "new-token", newPerms, true)
+	p, err := repo.GetByName(5, "spigot")
 	assert.NoError(t, err)
+	require.NotNil(t, p)
+	assert.Equal(t, 11, p.ID)
 }
 
-func TestAddToken_ProductNotFound(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
+func TestProductRepo_ListByProject(t *testing.T) {
+	repo, mock, cleanup := newProductRepo(t)
 	defer cleanup()
 
-	newPerms := types.TokenPermissions{Download: true}
-	err := repo.AddToken("nonexistent-product", testProductToken, "new-token", newPerms, true)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "product not found")
-}
+	rows := sqlmock.NewRows([]string{"id", "name", "project", "created_at"}).
+		AddRow(1, "a", 5, time.Time{}).
+		AddRow(2, "b", 5, time.Time{})
+	mock.ExpectQuery(`FROM "product" WHERE project=`).
+		WithArgs(5).
+		WillReturnRows(rows)
 
-func TestAddToken_MissingMaintainerPermission(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
-	defer cleanup()
-
-	product := makeProduct("test-addtoken-noperm")
-	err := repo.CreateProduct(product)
-	require.NoError(t, err)
-	defer repo.DeleteProduct("test-addtoken-noperm", testProductToken, true)
-
-	newPerms := types.TokenPermissions{Download: true}
-	err = repo.AddToken("test-addtoken-noperm", "unknown-token", "new-token", newPerms, false)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing maintainer permission")
-}
-
-func TestDeleteToken_Success(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
-	defer cleanup()
-
-	const targetToken = "token-to-delete"
-	product := &types.Product{
-		Name: "test-deletetoken-product",
-		Tokens: map[string]types.TokenPermissions{
-			testProductToken: {Maintainer: true},
-			targetToken:      {Download: true},
-		},
-		Versions: map[string]types.Version{},
-	}
-	err := repo.CreateProduct(product)
-	require.NoError(t, err)
-	defer repo.DeleteProduct("test-deletetoken-product", testProductToken, true)
-
-	err = repo.DeleteToken("test-deletetoken-product", testProductToken, targetToken, true)
+	got, err := repo.ListByProject(5)
 	assert.NoError(t, err)
+	assert.Len(t, got, 2)
 }
 
-func TestDeleteToken_ProductNotFound(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
+func TestProductRepo_ListByProject_QueryError(t *testing.T) {
+	repo, mock, cleanup := newProductRepo(t)
 	defer cleanup()
 
-	err := repo.DeleteToken("nonexistent-product", testProductToken, "some-token", true)
+	mock.ExpectQuery(`FROM "product" WHERE project=`).
+		WithArgs(5).
+		WillReturnError(fmt.Errorf("boom"))
+
+	got, err := repo.ListByProject(5)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "product not found")
+	assert.Nil(t, got)
 }
 
-func TestDeleteToken_MissingMaintainerPermission(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
+func TestProductRepo_Delete(t *testing.T) {
+	repo, mock, cleanup := newProductRepo(t)
 	defer cleanup()
 
-	product := makeProduct("test-deletetoken-noperm")
-	err := repo.CreateProduct(product)
-	require.NoError(t, err)
-	defer repo.DeleteProduct("test-deletetoken-noperm", testProductToken, true)
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM "product"`)).
+		WithArgs(11).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err = repo.DeleteToken("test-deletetoken-noperm", "unknown-token", "some-token", false)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing maintainer permission")
-}
-
-func TestAddVersion_Success(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
-	defer cleanup()
-
-	product := makeProduct("test-addversion-product")
-	err := repo.CreateProduct(product)
-	require.NoError(t, err)
-	defer repo.DeleteProduct("test-addversion-product", testProductToken, true)
-
-	v := types.Version{Path: "/some/path/file.zip", Checksum: "abc123"}
-	err = repo.AddVersion("test-addversion-product", "1.0.0", testProductToken, false, v)
+	err := repo.Delete(11)
 	assert.NoError(t, err)
-
-	fetched, err := repo.FetchProduct("test-addversion-product")
-	require.NoError(t, err)
-	assert.Equal(t, v, fetched.Versions["1.0.0"])
-}
-
-func TestAddVersion_ProductNotFound(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
-	defer cleanup()
-
-	v := types.Version{Path: "/some/path/file.zip", Checksum: "abc123"}
-	err := repo.AddVersion("nonexistent-product", "1.0.0", testProductToken, false, v)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "product not found")
-}
-
-func TestAddVersion_VersionAlreadyExists(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
-	defer cleanup()
-
-	product := makeProduct("test-addversion-dup")
-	err := repo.CreateProduct(product)
-	require.NoError(t, err)
-	defer repo.DeleteProduct("test-addversion-dup", testProductToken, true)
-
-	v := types.Version{Path: "/some/path/file.zip", Checksum: "abc123"}
-	err = repo.AddVersion("test-addversion-dup", "1.0.0", testProductToken, false, v)
-	require.NoError(t, err)
-
-	err = repo.AddVersion("test-addversion-dup", "1.0.0", testProductToken, false, v)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "version already exists")
-}
-
-func TestAddVersion_MissingUploadPermission(t *testing.T) {
-	repo, cleanup := helpers.SetupProductRepo(t)
-	defer cleanup()
-
-	product := makeProduct("test-addversion-noperm")
-	err := repo.CreateProduct(product)
-	require.NoError(t, err)
-	defer repo.DeleteProduct("test-addversion-noperm", testProductToken, true)
-
-	v := types.Version{Path: "/some/path/file.zip", Checksum: "abc123"}
-	err = repo.AddVersion("test-addversion-noperm", "1.0.0", "unknown-token", false, v)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing upload permission")
 }
