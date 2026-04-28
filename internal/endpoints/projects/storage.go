@@ -32,8 +32,6 @@ func storeBlob(storageRoot string, projectID, productID int, fh *multipart.FileH
 	if name == "" || name == "." || name == "/" {
 		return "", "", fmt.Errorf("invalid filename")
 	}
-	// Prefix with a unixnano timestamp so re-uploads of the same filename
-	// don't collide. originalFilename strips this prefix on download.
 	dst := filepath.Join(dir, strconv.FormatInt(time.Now().UnixNano(), 10)+"-"+name)
 
 	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
@@ -62,7 +60,6 @@ func removeBlob(path string) {
 	_ = os.Remove(path)
 }
 
-// originalFilename strips the unixnano collision prefix added by storeBlob.
 func originalFilename(storedPath string) string {
 	base := filepath.Base(storedPath)
 	for i := 0; i < len(base); i++ {

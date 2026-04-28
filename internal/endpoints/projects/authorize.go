@@ -17,8 +17,6 @@ const (
 	accessDelete
 )
 
-// authorize enforces that the caller holds the requested access on the
-// project. On failure it writes the HTTP error and returns ok=false.
 func (h *ProjectsHandler) authorize(c *gin.Context, projectID int, kind accessKind) (sess *auth.Session, project *types.Project, perm *types.Permission, ok bool) {
 	sess, err := auth.ParseSession(c, h.Cfg.Secret)
 	if err != nil {

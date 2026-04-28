@@ -109,8 +109,6 @@ func intersectOrgs(userOrgs, hostOrgs []int) []int {
 }
 
 
-// SearchByName prefix-matches display names on a host (case-insensitive,
-// excluding excludeID), capped at 25 rows.
 func (r *UserRepo) SearchByName(hostID int, query string, excludeID int) ([]types.User, error) {
 	rows, err := r.SqlDB.Query(
 		`SELECT DISTINCT u.id, u.display_name, a.username, a.sso_id
@@ -148,9 +146,6 @@ func (r *UserRepo) UserExistsByID(id int) (bool, error) {
 	return exists, nil
 }
 
-// PurgeUserData cascades a deletion of every row referencing userID across
-// projects, products, versions, permissions, tokens, and auth. Returns the
-// version blob paths so the caller can remove them from disk.
 func (r *UserRepo) PurgeUserData(userID int) ([]string, error) {
 	tx, err := r.SqlDB.Begin()
 	if err != nil {

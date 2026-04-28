@@ -93,9 +93,6 @@ func (r *ProjectRepo) GetByHostRepository(hostID, repository int) (*types.Projec
 	return &p, nil
 }
 
-// Delete cascades through versions, token_access, products, permissions, and
-// the project row. Returns the version blob paths so the caller can remove
-// the files from disk.
 func (r *ProjectRepo) Delete(id int) ([]string, error) {
 	tx, err := r.SqlDB.Begin()
 	if err != nil {

@@ -29,8 +29,6 @@ func toVersionDTO(v types.Version) versionDTO {
 	}
 }
 
-// validateVersionName rejects names that would break gin path params (empty,
-// containing slashes, or path traversal markers).
 func validateVersionName(name string) error {
 	if name == "" {
 		return errors.New("version name is required")
