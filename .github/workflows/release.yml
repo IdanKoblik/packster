@@ -33,12 +33,10 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
-      - name: Wait for services to be healthy
+      - name: Wait for Postgres
         run: |
-          echo "Waiting for MongoDB..."
-          until docker exec mongo mongosh --quiet --eval 'db.runCommand("ping").ok'; do sleep 1; done
-          echo "Waiting for Redis..."
-          until docker exec redis redis-cli ping; do sleep 1; done
+          echo "Waiting for Postgres..."
+          timeout 60s bash -c 'until docker compose exec -T postgres pg_isready -U root -d packster; do sleep 2; done'
 
       - name: Run coverage (unit + integration)
         run: make cover-integration

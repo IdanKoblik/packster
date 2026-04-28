@@ -1,14 +1,8 @@
 file_upload_limit: 20
-signing_key: "key"
 
-mongo:
-  connection_string: "mongodb://localhost:27017/"
-  database: "packster"
-  token_collection: "tokens"
-  product_collection: "products"
-
-redis:
-  addr: "localhost:6379"
-
-metrics:
-  addr: "0.0.0.0:9091"
+sql:
+  host: "localhost"
+  port: 5432
+  db: "packster"
+  user: "root"
+  password: "root"

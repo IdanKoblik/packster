@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #16161c 0%, transparent 60%),
+      #0b0b0d;
+    color: theme('colors.ink.DEFAULT');
+    font-family: theme('fontFamily.sans');
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.005em;
+    min-height: 100vh;
+  }
+
+  /* faint grid backdrop */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    -webkit-mask-image: radial-gradient(ellipse at 50% 30%, #000 40%, transparent 75%);
+    mask-image: radial-gradient(ellipse at 50% 30%, #000 40%, transparent 75%);
+    z-index: 0;
+  }
+}
+
+@layer components {
+  .shimmer-bar {
+    position: relative;
+    overflow: hidden;
+    background: #1e1e25;
+    border-radius: 4px;
+  }
+  .shimmer-bar::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
+    animation: shimmer 1.6s infinite;
+  }
+}

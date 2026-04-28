@@ -1,67 +1,20 @@
 services:
-  redis:
-    image: redis:7
-    container_name: redis
-    restart: always
-    ports:
-      - "6379:6379"
-    command: redis-server --save 20 1 --loglevel warning
-    volumes:
-      - redis_cache:/data
-
-  mongo:
-    image: mongo:7.0
-    container_name: mongo
-    command: ["mongod", "--bind_ip_all", "--port", "27017"]
-    ports:
-      - "27017:27017"
+  postgres:
+    image: postgres:17
     environment:
-      MONGO_INITDB_DATABASE: whisper
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: packster
+    ports:
+      - "5432:5432"
     volumes:
-      - mongo_data:/data/db
-      - mongo_config:/data/configdb
+      - postgres_data:/var/lib/postgresql/data
+      - ./scheme.sql:/docker-entrypoint-initdb.d/scheme.sql
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh --quiet --port 27017
+      test: ["CMD-SHELL", "pg_isready -U root -d packster"]
       interval: 5s
-      timeout: 30s
+      timeout: 5s
       retries: 10
 
-  prometheus:
-    image: prom/prometheus:v3.4.0
-    container_name: prometheus
-    restart: always
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=30d
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  grafana:
-    image: grafana/grafana:12.0.1
-    container_name: grafana
-    restart: always
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_USERS_ALLOW_SIGN_UP: "false"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-    depends_on:
-      - prometheus
-
 volumes:
-  mongo_data:
-  mongo_config:
-  redis_cache:
-    driver: local
-  prometheus_data:
-  grafana_data:
+  postgres_data:

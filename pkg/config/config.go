@@ -1,26 +1,32 @@
 package config
 
 type Config struct {
+	Secret string `yaml:"secret"`
 	FileUploadLimit int `yaml:"file_upload_limit,omitempty"`
 
-	Mongo   MongoConfig   `yaml:"mongo"`
-	Redis   RedisConfig   `yaml:"redis"`
-	Metrics MetricsConfig `yaml:"metrics,omitempty"`
+	Sql     PgsqlConfig    `yaml:"sql"`
+	Gitlab  *GitlabConfig  `yaml:"gitlab"`
+	Storage StorageConfig  `yaml:"storage"`
 }
 
-type RedisConfig struct {
-	Addr     string `yaml:"addr"`
-	Password string `yaml:"password,omitempty"`
-	DB       int    `yaml:"db,omitempty"`
+type StorageConfig struct {
+	Path string `yaml:"path"`
 }
 
-type MongoConfig struct {
-	ConnectionString  string `yaml:"connection_string"`
-	Database          string `yaml:"database"`
-	TokenCollection   string `yaml:"token_collection"`
-	ProductCollection string `yaml:"product_collection"`
+type PgsqlConfig struct {
+	Host 	 string  `yaml:"host"`
+	Port 	 uint16  `yaml:"port"`
+	DB 		 string  `yaml:"db"`
+	User 	 string  `yaml:"user"`
+	Password string	 `yaml:"password"`
+	SSL  	 bool    `yaml:"ssl"`
 }
 
-type MetricsConfig struct {
-	Addr string `yaml:"addr,omitempty"`
+type GitlabConfig struct {
+	Hosts map[string]GitlabHost `yaml:"hosts"`
+}
+
+type GitlabHost struct {
+	ApplicationId string `yaml:"id"`
+	Secret		  string `yaml:"secret"`
 }
