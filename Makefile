@@ -18,10 +18,17 @@ build: ui
 test:
 	$(GO) test -v ./...
 
+cover-integration:
+	$(GO) test -race -coverprofile=$(COVER_OUT) -coverpkg=./internal/... ./internal/...
+	$(GO) tool cover -func=$(COVER_OUT)
+	$(GO) tool cover -html=$(COVER_OUT) -o $(COVER_HTML)
+	@echo ""
+	@echo "HTML report written to $(COVER_HTML)"
+
 clean:
 	rm -rf bin $(COVER_OUT) $(COVER_HTML) .covunit .covint .covmerged $(UI_OUT)/assets $(UI_OUT)/index.html
 
 run: build
 	./bin/$(NAME)
 
-.PHONY: all build ui test clean run
+.PHONY: all build ui test cover-integration clean run
